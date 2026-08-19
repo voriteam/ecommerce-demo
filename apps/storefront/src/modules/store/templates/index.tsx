@@ -15,6 +15,7 @@ const StoreTemplate = async ({
   optionValueIds,
   q,
   department,
+  inStockOnly = true,
 }: {
   sortBy?: SortOptions
   page?: string
@@ -22,6 +23,7 @@ const StoreTemplate = async ({
   optionValueIds?: OptionValueIds
   q?: string
   department?: string
+  inStockOnly?: boolean
 }) => {
   const pageNumber = page ? parseInt(page) : 1
   const sort = sortBy || "created_at"
@@ -52,6 +54,7 @@ const StoreTemplate = async ({
         sortBy={sort}
         department={department}
         departments={departments}
+        inStockOnly={inStockOnly}
       />
       <div className="w-full">
         <div className="mb-8 text-2xl-semi">
@@ -65,6 +68,7 @@ const StoreTemplate = async ({
             optionValueIds={optionValueIds}
             q={q}
             categoryId={category?.id}
+            inStockOnly={inStockOnly}
           />
         </Suspense>
       </div>

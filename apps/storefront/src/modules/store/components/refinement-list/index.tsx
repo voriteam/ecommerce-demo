@@ -10,6 +10,7 @@ import {
 import OptionsPicker from "./options-picker"
 import SortProducts, { SortOptions } from "./sort-products"
 import DepartmentPicker, { type Department } from "./department-picker"
+import StockFilter from "./stock-filter"
 
 type RefinementListProps = {
   sortBy: SortOptions
@@ -17,6 +18,7 @@ type RefinementListProps = {
   hideOptionsPicker?: boolean
   departments?: Department[]
   department?: string
+  inStockOnly?: boolean
   "data-testid"?: string
 }
 
@@ -25,6 +27,7 @@ const RefinementList = ({
   hideOptionsPicker = false,
   departments,
   department,
+  inStockOnly = true,
   "data-testid": dataTestId,
 }: RefinementListProps) => {
   const router = useRouter()
@@ -75,6 +78,7 @@ const RefinementList = ({
         setQueryParams={setQueryParams}
         data-testid={dataTestId}
       />
+      <StockFilter inStockOnly={inStockOnly} setQueryParams={setQueryParams} />
       {departments && departments.length > 0 && (
         <DepartmentPicker departments={departments} selected={department} />
       )}

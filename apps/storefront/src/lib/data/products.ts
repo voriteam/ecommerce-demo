@@ -2,6 +2,7 @@
 
 import { sdk } from "@lib/config"
 import { OptionValueIds } from "@lib/util/product-option-filters"
+import { productIsInStock } from "@lib/util/in-stock"
 import { sortProducts } from "@lib/util/sort-products"
 import { HttpTypes } from "@medusajs/types"
 import { SortOptions } from "@modules/store/components/refinement-list/sort-products"
@@ -102,12 +103,14 @@ export const listProductsWithSort = async ({
   sortBy = "created_at",
   countryCode,
   optionValueIds,
+  inStockOnly = true,
 }: {
   page?: number
   queryParams?: ProductListQueryParams
   sortBy?: SortOptions
   countryCode: string
   optionValueIds?: OptionValueIds
+  inStockOnly?: boolean
 }): Promise<{
   response: { products: HttpTypes.StoreProduct[]; count: number }
   nextPage: number | null
@@ -130,11 +133,18 @@ export const listProductsWithSort = async ({
     countryCode,
   })
 
-  const sortedProducts = sortProducts(products, sortBy)
+  // The Store API has no stock filter - it accepts an inventory query and
+  // silently ignores it - so an empty shelf can only be hidden here, in the
+  // same window this already pages through.
+  const available = inStockOnly ? products.filter(productIsInStock) : products
+
+  const sortedProducts = sortProducts(available, sortBy)
 
   const pageParam = (page - 1) * limit
 
-  const filteredCount = products.length
+  // Counted after the stock filter, so pagination does not offer pages that
+  // turn out to be empty.
+  const filteredCount = available.length
 
   const nextPage = filteredCount > pageParam + limit ? pageParam + limit : null
 

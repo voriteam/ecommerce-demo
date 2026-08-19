@@ -25,6 +25,7 @@ export default async function PaginatedProducts({
   countryCode,
   optionValueIds,
   q,
+  inStockOnly = true,
 }: {
   sortBy?: SortOptions
   page: number
@@ -34,6 +35,7 @@ export default async function PaginatedProducts({
   countryCode: string
   optionValueIds?: OptionValueIds
   q?: string
+  inStockOnly?: boolean
 }) {
   const queryParams: PaginatedProductsParams = {
     limit: 12,
@@ -82,6 +84,7 @@ export default async function PaginatedProducts({
     sortBy,
     countryCode,
     optionValueIds,
+    inStockOnly,
   })
 
   const totalPages = Math.ceil(count / PRODUCT_LIMIT)
@@ -92,7 +95,9 @@ export default async function PaginatedProducts({
         className="py-16 text-center text-ui-fg-subtle"
         data-testid="no-products"
       >
-        Nothing on the shelves matches that.
+        {inStockOnly
+          ? "Nothing in stock matches that."
+          : "Nothing on the shelves matches that."}
       </p>
     )
   }

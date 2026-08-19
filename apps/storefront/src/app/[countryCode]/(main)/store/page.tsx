@@ -15,6 +15,7 @@ type StorePageSearchParams = Record<string, string | string[] | undefined> & {
   optionValueIds?: string | string[]
   q?: string
   department?: string
+  inStockOnly?: string
 }
 
 type Params = {
@@ -27,7 +28,7 @@ type Params = {
 export default async function StorePage(props: Params) {
   const params = await props.params
   const searchParams = await props.searchParams
-  const { sortBy, page, q, department } = searchParams
+  const { sortBy, page, q, department, inStockOnly } = searchParams
   const optionValueIds = parseOptionValueIds(searchParams)
 
   return (
@@ -38,6 +39,9 @@ export default async function StorePage(props: Params) {
       optionValueIds={optionValueIds}
       q={q}
       department={department}
+      // In stock unless explicitly asked otherwise, so a bare /store is a
+      // shelf you can actually buy from.
+      inStockOnly={inStockOnly !== "false"}
     />
   )
 }

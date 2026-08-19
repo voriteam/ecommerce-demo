@@ -57,3 +57,6 @@ Thumbs.db
 **/.DS_Store
 # TypeScript incremental build state
 **/tsconfig.tsbuildinfo
+
+# Playwright MCP session artifacts
+.playwright-mcp/
