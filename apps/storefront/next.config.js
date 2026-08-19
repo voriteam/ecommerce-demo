@@ -39,6 +39,13 @@ const nextConfig = {
         protocol: "https",
         hostname: "*.s3.amazonaws.com",
       },
+      {
+        // Product photography is hot-linked from Open Food Facts rather than
+        // copied into this store, so nothing here is ever hosting someone
+        // else's images.
+        protocol: "https",
+        hostname: "images.openfoodfacts.org",
+      },
       ...(S3_HOSTNAME && S3_PATHNAME
         ? [
             {

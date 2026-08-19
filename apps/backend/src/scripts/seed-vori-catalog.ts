@@ -23,7 +23,8 @@ export default async function seedVoriCatalog({ container }: ExecArgs) {
 
   logger.info(
     `vori: catalog seeded — ${result.productsCreated} created, ${result.productsUpdated} refreshed, ` +
-      `${result.categories} categories, ${result.levelsSet} stock levels set`,
+      `${result.categories} categories, ${result.levelsSet} stock levels set, ` +
+      `${result.imagesFound} product images found`,
   )
 
   if (Object.keys(result.skipped).length) {

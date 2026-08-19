@@ -4,6 +4,7 @@ import { inventoryFromVori } from "../../modules/vori/lib/mapping"
 import { applyInventoryLevelsStep } from "./steps/apply-inventory-levels"
 import { applyVoriTaxRulesStep } from "./steps/apply-vori-tax-rules"
 import { fetchVoriCatalogStep } from "./steps/fetch-vori-catalog"
+import { fetchProductImagesStep } from "./steps/fetch-product-images"
 import { resolveStoreContextStep } from "./steps/resolve-store-context"
 import { upsertVoriCategoriesStep } from "./steps/upsert-vori-categories"
 import { upsertVoriProductsStep } from "./steps/upsert-vori-products"
@@ -11,6 +12,7 @@ import { upsertVoriTaxRatesStep } from "./steps/upsert-vori-tax-rates"
 
 export type SeedCatalogResult = {
   categories: number
+  imagesFound: number
   levelsSet: number
   productsCreated: number
   productsTaxed: number
@@ -35,9 +37,15 @@ export const seedVoriCatalogWorkflow = createWorkflow("seed-vori-catalog", () =>
   const departments = transform({ catalog }, (data) => data.catalog.departments)
   const categoryIds = upsertVoriCategoriesStep(departments)
 
+  // The Vori API carries no imagery, so photography is matched on the barcode
+  // that scans at the register. A product without a match is sold without a
+  // picture rather than not sold.
+  const images = fetchProductImagesStep(transform({ catalog }, (data) => data.catalog.products))
+
   const products = upsertVoriProductsStep(
-    transform({ catalog, categoryIds, store }, (data) => ({
+    transform({ catalog, categoryIds, images, store }, (data) => ({
       categoryIds: data.categoryIds,
+      images: data.images,
       products: data.catalog.products,
       store: data.store,
     })),
@@ -64,9 +72,10 @@ export const seedVoriCatalogWorkflow = createWorkflow("seed-vori-catalog", () =>
 
   return new WorkflowResponse(
     transform(
-      { catalog, categoryIds, levelsSet, products, taxRates, taxed },
+      { catalog, categoryIds, images, levelsSet, products, taxRates, taxed },
       (data): SeedCatalogResult => ({
         categories: Object.keys(data.categoryIds).length,
+        imagesFound: Object.keys(data.images).length,
         levelsSet: data.levelsSet,
         productsCreated: data.products.created,
         productsTaxed: data.taxed.productsTaxed,

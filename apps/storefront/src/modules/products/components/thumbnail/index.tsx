@@ -30,7 +30,10 @@ const Thumbnail: React.FC<ThumbnailProps> = ({
         className,
         {
           "aspect-[11/14]": isFeatured,
-          "aspect-[9/16]": !isFeatured && size !== "square",
+          // Square rather than the starter's tall portrait frame: groceries are
+          // boxes, bottles and bags, and a 9:16 tile leaves a fitted packshot
+          // floating in empty space.
+          "aspect-square": !isFeatured && size !== "square",
           "aspect-[1/1]": size === "square",
           "w-[180px]": size === "small",
           "w-[290px]": size === "medium",
@@ -53,7 +56,10 @@ const ImageOrPlaceholder = ({
     <Image
       src={image}
       alt="Thumbnail"
-      className="absolute inset-0 object-cover object-center"
+      // Contain, not cover: a packshot photographed to the edge of the product
+      // loses its label when a tile crops it to fill. See the product gallery,
+      // which fits the same way for the same reason.
+      className="absolute inset-0 object-contain object-center p-4"
       draggable={false}
       quality={50}
       sizes="(max-width: 576px) 280px, (max-width: 768px) 360px, (max-width: 992px) 480px, 800px"

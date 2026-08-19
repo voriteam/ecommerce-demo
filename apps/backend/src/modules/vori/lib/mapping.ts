@@ -92,11 +92,13 @@ export type MedusaProductInput = {
   description?: string
   external_id: string
   handle: string
+  images?: { url: string }[]
   metadata: Record<string, unknown>
   options: { title: string; values: string[] }[]
   sales_channels?: { id: string }[]
   shipping_profile_id?: string
   status: "published"
+  thumbnail?: string
   title: string
   variants: {
     manage_inventory: boolean
@@ -126,6 +128,7 @@ export const voriProductToMedusa = (
   product: VoriStoreProduct,
   options: {
     categoryIds?: string[]
+    imageUrl?: string
     salesChannelIds?: string[]
     shippingProfileId?: string
   } = {},
@@ -152,11 +155,15 @@ export const voriProductToMedusa = (
     description: descriptionParts.length ? descriptionParts.join(" · ") : undefined,
     external_id: product.id,
     handle: productSlug(product),
+    // Linked, not copied: the URL points at Open Food Facts, so this store
+    // never hosts photography it does not own.
+    images: options.imageUrl ? [{ url: options.imageUrl }] : undefined,
     metadata: voriProductMetadata(product),
     options: [{ title: FORMAT_OPTION, values: [format] }],
     sales_channels: options.salesChannelIds?.map((id) => ({ id })),
     shipping_profile_id: options.shippingProfileId,
     status: "published",
+    thumbnail: options.imageUrl,
     title: product.name,
     variants: [
       {

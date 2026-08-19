@@ -100,6 +100,21 @@ only exists as a cashier button.
 Re-running the seed is safe. Products are matched on their Vori identifier, so a second run refreshes
 names, prices and stock rather than duplicating the shelves, and it never moves a product's URL.
 
+## Product photography
+
+The Vori API carries no images, so the catalog is illustrated from
+[Open Food Facts](https://world.openfoodfacts.org) instead, matched on the barcode that scans at the
+register. Roughly half a real grocery catalog gets a photo; the rest is sold without one.
+
+Nothing is downloaded. What is stored against a product is a URL on `images.openfoodfacts.org`, so
+this store never hosts anyone else's photography. Their images are contributed by the public under
+[CC BY-SA](https://creativecommons.org/licenses/by-sa/3.0/) — credit them if you put this in front of
+an audience.
+
+Lookups happen during `pnpm seed:catalog`, batched a hundred barcodes to a request, and a product
+that already has a photo is not looked up again. Set `OPEN_FOOD_FACTS_ENABLED=false` in
+`apps/backend/.env` to seed without it — useful offline, or when re-seeding repeatedly.
+
 ## Watching stock move
 
 A scheduled job polls Vori every two minutes and writes what changed onto the matching inventory

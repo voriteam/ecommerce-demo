@@ -14,19 +14,23 @@ const ImageGallery = ({ images }: ImageGalleryProps) => {
           return (
             <Container
               key={image.id}
-              className="relative aspect-[29/34] w-full overflow-hidden bg-ui-bg-subtle"
+              className="relative aspect-square w-full overflow-hidden bg-white"
               id={image.id}
             >
               {!!image.url && (
                 <Image
                   src={image.url}
                   priority={index <= 2 ? true : false}
-                  className="absolute inset-0 rounded-rounded"
+                  className="absolute inset-0 rounded-rounded p-8"
                   alt={`Product image ${index + 1}`}
                   fill
                   sizes="(max-width: 576px) 280px, (max-width: 768px) 360px, (max-width: 992px) 480px, 800px"
                   style={{
-                    objectFit: "cover",
+                    // Packshots are photographed to the edge of the product, so
+                    // filling a frame crops the label off. Fit the whole thing
+                    // inside instead and let it sit centred on white, which is
+                    // the background most of them were already shot against.
+                    objectFit: "contain",
                   }}
                 />
               )}

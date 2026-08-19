@@ -8,10 +8,12 @@ import {
 
 import { voriProductToMedusa, type VoriStoreProduct } from "../../../modules/vori/lib/mapping"
 import type { CategoryIdsByDepartment } from "./upsert-vori-categories"
+import type { ImagesByProduct } from "./fetch-product-images"
 import type { StoreContext } from "./resolve-store-context"
 
 export type UpsertProductsInput = {
   categoryIds: CategoryIdsByDepartment
+  images: ImagesByProduct
   products: VoriStoreProduct[]
   store: StoreContext
 }
@@ -54,7 +56,7 @@ export const upsertVoriProductsStep = createStep(
     const query = container.resolve(ContainerRegistrationKeys.QUERY)
     const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
 
-    const { categoryIds, products, store } = input
+    const { categoryIds, images, products, store } = input
 
     const { data: existing } = await query.graph({
       entity: "product",
@@ -69,6 +71,7 @@ export const upsertVoriProductsStep = createStep(
     const shaped = products.map((product) => ({
       medusa: voriProductToMedusa(product, {
         categoryIds: [categoryIds[product.department_id ?? ""]].filter(Boolean) as string[],
+        imageUrl: images[product.id],
         salesChannelIds: [store.salesChannelId],
         shippingProfileId: store.shippingProfileId,
       }),
@@ -96,6 +99,9 @@ export const upsertVoriProductsStep = createStep(
       metadata: medusa.metadata,
       status: medusa.status,
       title: medusa.title,
+      // Only when one was found, so a product that already has photography
+      // does not have it cleared by a run that turned nothing up.
+      ...(medusa.thumbnail ? { images: medusa.images, thumbnail: medusa.thumbnail } : {}),
     }))
 
     for (const batch of chunk(productUpdates, CHUNK)) {
