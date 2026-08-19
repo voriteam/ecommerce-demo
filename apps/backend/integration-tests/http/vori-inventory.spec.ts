@@ -255,6 +255,135 @@ medusaIntegrationTestRunner({
       })
     })
 
+    describe("keeping the catalog in step with the store", () => {
+      it("picks up a product the grocer has just added", async () => {
+        serveCatalog()
+        const first = await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+        expect(first.result.productsCreated).toBe(5)
+
+        handlers = []
+        const added = { ...catalogFixture[0], id: "900777", name: "New Arrival Oat Milk" }
+        handlers.push((url) => {
+          if (url.pathname === "/v1/store-departments")
+            return { data: DEPARTMENTS, has_more: false }
+          if (url.pathname === "/v1/store-products")
+            return { data: [...catalogFixture, added], has_more: false }
+          if (url.pathname === "/v1/tax-rates")
+            return { data: taxRateFixture.filter((r) => r.active), has_more: false }
+          return undefined
+        })
+
+        const { result } = await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        expect(result.productsCreated).toBe(1)
+        expect(result.productsDeactivated).toBe(0)
+
+        const query = getContainer().resolve("query")
+        const { data: products } = await query.graph({
+          entity: "product",
+          fields: ["external_id", "status", "title"],
+        })
+        expect(products.find((p: any) => p.external_id === "900777")).toMatchObject({
+          status: "published",
+          title: "New Arrival Oat Milk",
+        })
+      })
+
+      it("takes down a product the grocer stops selling online", async () => {
+        serveCatalog()
+        await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        handlers = []
+        // The beer loses its ecommerce flag, so the catalog fetch stops
+        // returning it - which is how a grocer withdraws something.
+        const withoutBeer = catalogFixture.filter((p) => p.id !== "900003")
+        handlers.push((url) => {
+          if (url.pathname === "/v1/store-departments")
+            return { data: DEPARTMENTS, has_more: false }
+          if (url.pathname === "/v1/store-products") return { data: withoutBeer, has_more: false }
+          if (url.pathname === "/v1/tax-rates")
+            return { data: taxRateFixture.filter((r) => r.active), has_more: false }
+          return undefined
+        })
+
+        const { result } = await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        expect(result.productsDeactivated).toBe(1)
+
+        const query = getContainer().resolve("query")
+        const { data: products } = await query.graph({
+          entity: "product",
+          fields: ["external_id", "status"],
+        })
+        // Unpublished, not deleted: its orders and its URL survive.
+        expect(products.find((p: any) => p.external_id === "900003")).toMatchObject({
+          status: "draft",
+        })
+        expect(products.filter((p: any) => p.status === "published")).toHaveLength(4)
+      })
+
+      it("puts a product back on sale when it returns", async () => {
+        serveCatalog()
+        await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        handlers = []
+        const withoutBeer = catalogFixture.filter((p) => p.id !== "900003")
+        handlers.push((url) => {
+          if (url.pathname === "/v1/store-departments")
+            return { data: DEPARTMENTS, has_more: false }
+          if (url.pathname === "/v1/store-products") return { data: withoutBeer, has_more: false }
+          if (url.pathname === "/v1/tax-rates")
+            return { data: taxRateFixture.filter((r) => r.active), has_more: false }
+          return undefined
+        })
+        await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        handlers = []
+        serveCatalog()
+        const { result } = await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        expect(result.productsDeactivated).toBe(0)
+
+        const query = getContainer().resolve("query")
+        const { data: products } = await query.graph({
+          entity: "product",
+          fields: ["external_id", "status"],
+        })
+        expect(products.find((p: any) => p.external_id === "900003")).toMatchObject({
+          status: "published",
+        })
+      })
+
+      it("takes nothing down when the catalog comes back empty", async () => {
+        serveCatalog()
+        await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        handlers = []
+        // An empty response is far likelier to be a bad day at the API than a
+        // grocer withdrawing their whole catalog, and acting on it would empty
+        // the storefront.
+        handlers.push((url) => {
+          if (url.pathname === "/v1/store-departments")
+            return { data: DEPARTMENTS, has_more: false }
+          if (url.pathname === "/v1/store-products") return { data: [], has_more: false }
+          if (url.pathname === "/v1/tax-rates")
+            return { data: taxRateFixture.filter((r) => r.active), has_more: false }
+          return undefined
+        })
+
+        const { result } = await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        expect(result.productsDeactivated).toBe(0)
+
+        const query = getContainer().resolve("query")
+        const { data: products } = await query.graph({
+          entity: "product",
+          fields: ["status"],
+        })
+        expect(products.filter((p: any) => p.status === "published")).toHaveLength(5)
+      })
+    })
+
     describe("tax", () => {
       it("mirrors the live rates and leaves the switched-off one alone", async () => {
         serveCatalog()

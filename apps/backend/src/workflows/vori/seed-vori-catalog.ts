@@ -1,8 +1,10 @@
 import { createWorkflow, transform, WorkflowResponse } from "@medusajs/framework/workflows-sdk"
+import { acquireLockStep, releaseLockStep } from "@medusajs/medusa/core-flows"
 
 import { inventoryFromVori } from "../../modules/vori/lib/mapping"
 import { applyInventoryLevelsStep } from "./steps/apply-inventory-levels"
 import { applyVoriTaxRulesStep } from "./steps/apply-vori-tax-rules"
+import { deactivateWithdrawnProductsStep } from "./steps/deactivate-withdrawn-products"
 import { fetchVoriCatalogStep } from "./steps/fetch-vori-catalog"
 import { fetchProductImagesStep } from "./steps/fetch-product-images"
 import { resolveStoreContextStep } from "./steps/resolve-store-context"
@@ -12,6 +14,7 @@ import { upsertVoriTaxRatesStep } from "./steps/upsert-vori-tax-rates"
 
 export type SeedCatalogResult = {
   categories: number
+  productsDeactivated: number
   imagesFound: number
   levelsSet: number
   productsCreated: number
@@ -29,7 +32,23 @@ export type SeedCatalogResult = {
  * shelves. Opening stock comes from the same payload as the products, so the
  * store has believable quantities before the sync job has ever run.
  */
+/**
+ * One catalog sync at a time.
+ *
+ * The scheduled run and a hand-run `pnpm seed:catalog` do the same work, and
+ * two of them interleaving would have both deciding what to create from
+ * different snapshots of the store.
+ */
+export const VORI_CATALOG_LOCK = "vori-catalog-sync"
+
 export const seedVoriCatalogWorkflow = createWorkflow("seed-vori-catalog", () => {
+  acquireLockStep({
+    key: VORI_CATALOG_LOCK,
+    // Fail rather than queue: the next scheduled run covers the same ground.
+    timeout: 1,
+    ttl: 30 * 60,
+  })
+
   const catalog = fetchVoriCatalogStep({})
   const store = resolveStoreContextStep({})
   const taxRates = upsertVoriTaxRatesStep({})
@@ -70,14 +89,26 @@ export const seedVoriCatalogWorkflow = createWorkflow("seed-vori-catalog", () =>
     })),
   )
 
+  // After the upsert, so a product that came back on sale has already been
+  // published again and is not taken straight back down.
+  const withdrawn = deactivateWithdrawnProductsStep(
+    transform({ catalog, products }, (data) => {
+      void data.products
+      return data.catalog.products
+    }),
+  )
+
+  releaseLockStep({ key: VORI_CATALOG_LOCK })
+
   return new WorkflowResponse(
     transform(
-      { catalog, categoryIds, images, levelsSet, products, taxRates, taxed },
+      { catalog, categoryIds, images, levelsSet, products, taxRates, taxed, withdrawn },
       (data): SeedCatalogResult => ({
         categories: Object.keys(data.categoryIds).length,
         imagesFound: Object.keys(data.images).length,
         levelsSet: data.levelsSet,
         productsCreated: data.products.created,
+        productsDeactivated: data.withdrawn.deactivated,
         productsTaxed: data.taxed.productsTaxed,
         productsUpdated: data.products.updated,
         skipped: data.catalog.skipped,

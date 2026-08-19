@@ -100,6 +100,15 @@ only exists as a cashier button.
 Re-running the seed is safe. Products are matched on their Vori identifier, so a second run refreshes
 names, prices and stock rather than duplicating the shelves, and it never moves a product's URL.
 
+It also runs on its own, hourly by default, so a product the grocer adds appears without anyone
+touching the demo. Set `VORI_CATALOG_CRON` to change that.
+
+A product the grocer stops selling online — the ecommerce flag cleared, the product deactivated, or
+turned into something a website cannot sell — stops coming back from the catalog fetch, and the next
+sync takes it down. It is unpublished rather than deleted, so its orders and its URL survive and it
+goes back on sale by itself if it returns. If the catalog ever comes back empty, nothing is taken
+down: that is far likelier to be a bad response than a grocer withdrawing everything.
+
 ## Product photography
 
 The Vori API carries no images, so the catalog is illustrated from
