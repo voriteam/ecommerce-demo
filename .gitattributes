@@ -1,0 +1,35 @@
+# Normalise line endings. Git stores LF and checks out the platform default.
+* text=auto eol=lf
+
+# Files that MUST be LF regardless of platform: a CRLF shebang line makes the
+# container entrypoint fail with a "no such file or directory" that names the
+# interpreter, which is a genuinely baffling way to lose an afternoon.
+*.sh            text eol=lf
+Dockerfile      text eol=lf
+.dockerignore   text eol=lf
+
+# Generated. Marking these collapses them in pull request diffs and keeps them
+# out of language statistics — they are output, not authored code, and they are
+# most of this repo's line count.
+pnpm-lock.yaml                  linguist-generated=true -diff
+src/payload-types.ts            linguist-generated=true
+src/vori/generated/*.d.ts       linguist-generated=true
+src/migrations/*.ts             linguist-generated=true
+src/app/(payload)/admin/importMap.js  linguist-generated=true
+
+# Vendored from the upstream Payload template rather than written here.
+src/components/ui/**            linguist-vendored=true
+
+# Binary. Never diff, never touch line endings.
+*.ico    binary
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.webp   binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.otf    binary
+*.pdf    binary
+*.db     binary

@@ -1,0 +1,64 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+.playwright
+playwright-report/
+playwright-report/index.html
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local env files
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+public/media
+
+
+# Local SQLite database (the deployed one lives on a Fly volume)
+*.db
+*.db-shm
+*.db-wal
+
+# Vori inventory sync checkpoint, when run from a script rather than the job queue
+vori-inventory-checkpoint.json
+
+# Payload migration snapshots. Only `payload migrate:create` reads these, to
+# diff against the previous schema; nothing needs them at runtime. This demo
+# has one migration and regenerates it wholesale, so committing a
+# ten-thousand-line snapshot buys nothing.
+src/migrations/*.json
+
+# Written by `next dev` on every run — agent instructions, not project files.
+AGENTS.md
+CLAUDE.md
+
+# Test runner output
+test-results/

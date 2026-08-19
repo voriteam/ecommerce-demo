@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+.next
+*.db
+*.db-shm
+*.db-wal
+.env
+.env.*
+!.env.example
+playwright-report
+test-results
+.playwright
+coverage
+README.md
