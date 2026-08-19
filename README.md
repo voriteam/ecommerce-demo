@@ -1,5 +1,9 @@
 # Vori Market
 
+> [!CAUTION]
+> This repo is largely AI-generated and is purely meant for demonstration purposes only. Vori does NOT
+> recommend using this application in production. We are not liable for any damages or losses caused by this code.
+
 A demo grocery store built on the
 [Vori grocer-facing API](https://help.vori.com/api/introduction). The catalog, the
 shelf quantities and the sales all belong to a real Vori store: products are seeded from it, stock is
