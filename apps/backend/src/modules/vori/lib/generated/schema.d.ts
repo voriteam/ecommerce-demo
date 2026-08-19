@@ -456,6 +456,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/transactions/{id}/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Refund a transaction
+         * @description Records a refund your own system processed against a transaction Vori already recorded, and returns it as a transaction of its own. Only a transaction created through this API can be refunded. Quantities and amounts are negative, as they are when you read a refund back, and a line cannot return more than it has left after earlier refunds. Send a UUIDv7 as `id`; sending the same refund again under that ID returns the refund already recorded rather than creating a second, and sending different values under it is rejected.
+         */
+        post: operations["createTransactionRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/variable-weights": {
         parameters: {
             query?: never;
@@ -793,6 +813,139 @@ export interface components {
              * @example 199.99
              */
             value: string;
+        };
+        /** @description A product returned on a refund being recorded, with the quantity or weight coming back, the price it sold at, and the savings, fees, and tax being reversed with it. */
+        CreateRefundLineItem: {
+            /**
+             * Format: positive-monetary
+             * @description Discounts being reversed on this line, as a positive amount. Recorded exactly as provided. Defaults to 0.
+             * @example 199.99
+             */
+            discount_total?: string;
+            /** @description Fees and deposits (bottle deposits, CRV, bag fees) returned on this line. */
+            item_modifiers?: components["schemas"]["CreateRefundLineItemModifier"][];
+            /**
+             * Format: positive-monetary
+             * @description Promotional savings being reversed on this line, as a positive amount. Recorded exactly as provided. Defaults to 0.
+             * @example 199.99
+             */
+            promo_savings?: string;
+            /**
+             * @description Number of units coming back, as a negative whole number. For items sold by weight, send -1 and provide the weight instead. Cannot return more than the line has left.
+             * @example -199.99
+             */
+            quantity: string;
+            /**
+             * Format: positive-monetary
+             * @description Price per unit — or, for items sold by weight, the price per unit of weight — the product sold at. Positive, as on the original transaction.
+             * @example 199.99
+             */
+            retail_price: string;
+            /**
+             * Format: negative-monetary
+             * @description Sales tax refunded on this line, as a negative amount. Defaults to 0.
+             * @example -199.99
+             */
+            tax_total?: string;
+            /**
+             * Format: negative-monetary
+             * @description Portion of this line that was subject to sales tax, as a negative amount. Defaults to 0 (untaxed).
+             * @example -199.99
+             */
+            taxable_amount?: string;
+            /**
+             * Format: negative-monetary
+             * @description Final amount refunded for this line including tax. Must equal (retail_price x quantity) — or (retail_price x weight) for items sold by weight — plus promo_savings, discount_total, the sum of fee/deposit amounts, and tax_total.
+             * @example -199.99
+             */
+            total: string;
+            /**
+             * Format: uuid
+             * @description ID of the line on the original transaction that this line returns. Retrieve the transaction to read the IDs of its lines.
+             */
+            transaction_line_item_id: string;
+            /**
+             * @description Measured weight coming back (e.g., pounds), as a negative amount, for items sold by weight. Send quantity -1 alongside it. Cannot return more than the line has left.
+             * @example -199.99
+             */
+            weight?: string;
+        };
+        /** @description A fee or deposit returned on a line of a refund being recorded, such as a bottle deposit, CRV, or bag fee. */
+        CreateRefundLineItemModifier: {
+            /**
+             * Format: negative-monetary
+             * @description Amount of this fee or deposit returned on this line, as a negative amount.
+             * @example -199.99
+             */
+            amount: string;
+            /** @description ID of the fee or deposit (e.g., bottle deposit, CRV, bag fee) as configured for your store. */
+            item_modifier_id: string;
+        };
+        /** @description Money returned on one of the payments the original transaction collected. */
+        CreateRefundPayment: {
+            /**
+             * Format: negative-monetary
+             * @description Amount returned to this payment method, as a negative amount. Cannot return more than the payment has left.
+             * @example -199.99
+             */
+            amount: string;
+            /**
+             * Format: date-time
+             * @description When the refund settled. Defaults to the refund's completed_at.
+             */
+            completed_at?: string;
+            /** @description Your payment processor's reference for the refund. Surrounding whitespace is removed; the value is otherwise stored as provided so your systems can look it up later, and it is never interpreted. */
+            external_transaction_id: string;
+            /**
+             * Format: uuid
+             * @description ID of the payment on the original transaction that this returns money to. How it was tendered is taken from that payment.
+             */
+            transaction_payment_id: string;
+        };
+        /** @description A refund your own system processed against a transaction Vori already recorded, with the products coming back and the money going out. */
+        CreateRefundRequest: {
+            /**
+             * Format: uuid
+             * @description Unique refund ID generated by your system (UUIDv7). It serves as the idempotency key for the request: sending the same refund twice with the same ID returns the refund already recorded rather than creating a duplicate. Generate it before your first attempt and reuse it on every retry. Sending different values under an ID already used is rejected.
+             */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When the refund was completed in your system.
+             */
+            completed_at: string;
+            /** @description ID of the employee to record this refund under. Defaults to the employee Vori maintains for transactions submitted through this API. */
+            employee_id?: string | null;
+            /** @description Your own identifier for this refund, such as a return number from your e-commerce platform. Surrounding whitespace is removed; the value is otherwise stored as provided and never interpreted, and you can filter transactions by it. Vori does not require it to be unique. */
+            external_id?: string | null;
+            /** @description ID of the lane to record this refund under. Defaults to the lane Vori maintains for transactions submitted through this API. */
+            lane_id?: string | null;
+            /** @description Products coming back on the refund. */
+            line_items: components["schemas"]["CreateRefundLineItem"][];
+            /**
+             * @description Your own key/value pairs, stored with the refund and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
+             * @example {
+             *       "order_source": "shopify",
+             *       "fulfillment_id": "88213"
+             *     }
+             */
+            metadata?: {
+                [key: string]: string;
+            } | null;
+            /** @description Payments the refund returns money to. */
+            payments: components["schemas"]["CreateRefundPayment"][];
+            /**
+             * Format: negative-monetary
+             * @description Total sales tax refunded, as a negative amount. Must equal the sum of the line-item tax totals.
+             * @example -199.99
+             */
+            tax_total: string;
+            /**
+             * Format: negative-monetary
+             * @description Final refund total including tax, as a negative amount. Must equal the sum of the line totals, and the payments must add up to this amount.
+             * @example -199.99
+             */
+            total: string;
         };
         CreateStoreDepartmentRequest: {
             /** @description Whether sales from this department are omitted from sales reporting. Defaults to false. */
@@ -1359,6 +1512,50 @@ export interface components {
         PurchaseOrderLineItemUnitOfMeasure: "CASE" | "EACH" | "LB";
         /** @enum {string} */
         ReceiptType: "email" | "print" | "sms";
+        /** @enum {string} */
+        RefundExceedsField: "line_discount_total" | "line_item_modifier_total" | "line_promo_savings" | "line_quantity" | "line_tax_total" | "line_taxable_amount" | "line_total" | "line_weight" | "payment_amount";
+        RefundExceedsOriginalError: {
+            /** @enum {string} */
+            error_code: "refund_exceeds_original";
+            error_details: components["schemas"]["RefundExceedsOriginalErrorDetails"];
+        };
+        RefundExceedsOriginalErrorDetails: {
+            field: components["schemas"]["RefundExceedsField"];
+            remaining: string;
+            requested: string;
+            /** Format: uuid */
+            transaction_line_item_id?: string;
+            /** Format: uuid */
+            transaction_payment_id?: string;
+        };
+        RefundLineItemsNotFoundError: {
+            /** @enum {string} */
+            error_code: "refund_line_items_not_found";
+            error_details: components["schemas"]["RefundLineItemsNotFoundErrorDetails"];
+        };
+        RefundLineItemsNotFoundErrorDetails: {
+            transaction_line_item_ids: string[];
+        };
+        /** @enum {string} */
+        RefundNotRefundableReason: "not_a_sale" | "not_api_originated" | "not_completed";
+        RefundPaymentsNotFoundError: {
+            /** @enum {string} */
+            error_code: "refund_payments_not_found";
+            error_details: components["schemas"]["RefundPaymentsNotFoundErrorDetails"];
+        };
+        RefundPaymentsNotFoundErrorDetails: {
+            transaction_payment_ids: string[];
+        };
+        RefundTransactionNotRefundableError: {
+            /** @enum {string} */
+            error_code: "refund_transaction_not_refundable";
+            error_details: components["schemas"]["RefundTransactionNotRefundableErrorDetails"];
+        };
+        RefundTransactionNotRefundableErrorDetails: {
+            reason: components["schemas"]["RefundNotRefundableReason"];
+            /** Format: uuid */
+            transaction_id: string;
+        };
         /** @enum {string} */
         Resource: "*" | "accounting_integration" | "agent_chats" | "api_clients" | "asynchronous_tasks" | "banners" | "blackhawk_transactions" | "capabilities" | "coupons" | "custom_quick_actions" | "datacap_transactions" | "departments" | "discounts" | "ditto_auth_tokens" | "edge_agents" | "electronic_shelf_labels" | "employees" | "files" | "food_modifiers" | "gift_cards" | "gl_code_mappings" | "house_accounts" | "inventory" | "inventory_sessions" | "invoices" | "item_modifiers" | "label_dimension_sets" | "label_sheet_profiles" | "label_stock_products" | "lanes" | "loyalty_bonuses" | "loyalty_campaigns" | "loyalty_rewards" | "notification_templates" | "offers" | "order_guides" | "pos_banner_configurations" | "pos_orders" | "pos_tills" | "price_tags" | "product_ranges" | "products" | "promotions" | "purchase_orders" | "receiving" | "reporting" | "revision_sessions" | "revisions" | "roles" | "shopper_tags" | "shoppers" | "store_product_inventory_counts" | "store_product_lots" | "store_product_rules" | "store_product_tag_templates" | "store_snap_incentive_program_coupons" | "store_vendor_merge_requests" | "store_vendor_product_merge_requests" | "store_vendor_products" | "store_vendors" | "stores" | "tag_printings" | "tag_template_presets" | "tag_templates" | "tax_rates" | "users" | "variable_weights" | "vendor_merge_requests" | "vendor_product_merge_requests" | "vendors" | "wallet_payments" | "wic_products";
         /** @enum {string} */
@@ -2012,7 +2209,7 @@ export interface components {
             store_product_id: string;
         };
         /** @enum {string} */
-        TransactionLineItemInvalidReason: "non_integer_quantity" | "weight_on_non_weight_item" | "weight_quantity_must_be_one" | "weight_required";
+        TransactionLineItemInvalidReason: "item_modifier_not_on_line" | "non_integer_quantity" | "retail_price_mismatch" | "weight_on_non_weight_item" | "weight_quantity_must_be_one" | "weight_required";
         /** @description A loyalty reward redeemed against a line of a transaction, with the savings it produced and the offer it came from. */
         TransactionLineItemLoyaltyReward: {
             /** @description Unique identifier for the record. */
@@ -3878,6 +4075,55 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    createTransactionRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRefundRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transaction"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionLaneNotFoundError"] | components["schemas"]["TransactionLaneStoreMismatchError"] | components["schemas"]["TransactionLaneNotVirtualError"] | components["schemas"]["TransactionEmployeeNotFoundError"] | components["schemas"]["TransactionEmployeeNotVirtualError"] | components["schemas"]["TransactionTotalsMismatchError"] | components["schemas"]["TransactionLineItemInvalidError"] | components["schemas"]["RefundTransactionNotRefundableError"] | components["schemas"]["RefundLineItemsNotFoundError"] | components["schemas"]["RefundPaymentsNotFoundError"] | components["schemas"]["RefundExceedsOriginalError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransactionAlreadyExistsError"] | components["schemas"]["TransactionRequestMismatchError"];
+                };
             };
         };
     };

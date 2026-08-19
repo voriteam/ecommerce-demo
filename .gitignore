@@ -60,3 +60,6 @@ Thumbs.db
 
 # Playwright MCP session artifacts
 .playwright-mcp/
+
+# Medusa log output
+**/medusa.log

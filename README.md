@@ -214,6 +214,25 @@ vori: 2 active tax rates charge a fixed amount per unit, which Medusa cannot exp
 
 If your store uses those, the sale is recorded without them and the total is short by that much.
 
+## Cancelling an order
+
+Cancelling an order in the admin gives the shopper their money back and reverses the sale in the
+grocer's books, so the transaction and the stock both end up where they started.
+
+Cancellation is the trigger rather than the admin's payment-refund action. Refunding a payment
+directly raises no event to listen for — the cancel path returns the money through a workflow that
+emits nothing — so `order.canceled` is what actually fires.
+
+Only a full reversal is recorded. A refund in Vori has to name the line and payment it reverses, and
+anything less than the whole sale coming back is an amount with no items attached to it — guessing
+which products returned would put the wrong stock on the shelf and misstate the tax. Those are left
+alone with the reason written to the order, as is a cancellation of an order that was never paid.
+
+The sale is found in Vori by the order it was recorded against, so nothing has to be kept on this
+side beyond the order itself. Outcomes land on the order the same way a sale's do — `refunded`,
+`skipped`, `conflict` or `failed` — and a reversal reuses its identifier on every attempt, so a retry
+cannot give the money back twice.
+
 ## Taking payment
 
 Checkout works without Stripe, using Medusa's built-in manual provider. To use Stripe in test mode,

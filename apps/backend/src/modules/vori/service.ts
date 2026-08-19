@@ -10,6 +10,7 @@ import type {
   VoriTaxRate,
 } from "./lib/mapping"
 import type { CreateTransactionRequest } from "./lib/transactions"
+import type { CreateRefundRequest, VoriTransaction } from "./lib/refunds"
 
 const PAGE_SIZE = 100
 
@@ -202,6 +203,46 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
       method: "POST",
       path: "/v1/transactions",
     })
+  }
+
+  /**
+   * The transaction recorded for one of our orders, or null.
+   *
+   * Looked up by the order ID we sent as `external_id` rather than kept on our
+   * side, so a refund works from what Vori actually holds - including the line
+   * and payment IDs a refund has to name, which only exist once Vori has
+   * assigned them.
+   */
+  async findTransactionByExternalId(externalId: string): Promise<VoriTransaction | null> {
+    const page = unwrap(
+      await this.client().GET("/v1/transactions", {
+        params: { query: { external_id: externalId, limit: 2 } },
+      }),
+      { method: "GET", path: "/v1/transactions" },
+    ) as { data: VoriTransaction[] }
+
+    // `external_id` is ours to choose and Vori never enforces uniqueness on
+    // it, so more than one match means our own bookkeeping has gone wrong and
+    // guessing which to reverse would be worse than refusing.
+    if (page.data.length > 1) {
+      throw new MedusaError(
+        MedusaError.Types.INVALID_DATA,
+        `More than one Vori transaction carries external_id ${externalId}`,
+      )
+    }
+
+    return page.data[0] ?? null
+  }
+
+  /** Records a refund against a transaction. Throws VoriApiError on refusal. */
+  async refundTransaction(transactionId: string, request: CreateRefundRequest): Promise<unknown> {
+    return unwrap(
+      await this.client().POST("/v1/transactions/{id}/refunds", {
+        params: { path: { id: transactionId } },
+        body: request,
+      }),
+      { method: "POST", path: `/v1/transactions/${transactionId}/refunds` },
+    )
   }
 
   async getSyncState(): Promise<SyncState> {
