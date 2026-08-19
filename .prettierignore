@@ -1,0 +1,5 @@
+pnpm-lock.yaml
+apps/backend/.medusa
+apps/storefront/.next
+# Generated from Vori's OpenAPI description by `pnpm generate:client`.
+apps/backend/src/modules/vori/lib/generated

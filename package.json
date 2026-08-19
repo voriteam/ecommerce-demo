@@ -1,0 +1,33 @@
+{
+  "name": "vori-ecommerce-demo",
+  "private": false,
+  "packageManager": "pnpm@10.20.0",
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "scripts": {
+    "setup": "./scripts/setup.sh",
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "start": "turbo start",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "backend:dev": "turbo dev --filter=@vori-demo/backend",
+    "storefront:dev": "turbo dev --filter=@vori-demo/storefront",
+    "db:migrate": "pnpm --filter @vori-demo/backend exec medusa db:migrate",
+    "seed:store": "pnpm --filter @vori-demo/backend exec medusa exec ./src/migration-scripts/initial-data-seed.ts",
+    "seed:catalog": "pnpm --filter @vori-demo/backend exec medusa exec ./src/scripts/seed-vori-catalog.ts",
+    "sync:inventory": "pnpm --filter @vori-demo/backend exec medusa exec ./src/scripts/sync-vori-inventory.ts",
+    "generate:client": "pnpm --filter @vori-demo/backend run generate:client",
+    "link:storefront": "pnpm --filter @vori-demo/backend exec medusa exec ./src/scripts/link-storefront.ts",
+    "record:order": "pnpm --filter @vori-demo/backend exec medusa exec ./src/scripts/record-vori-order.ts"
+  },
+  "devDependencies": {
+    "@medusajs/eslint-plugin": "2.19.0",
+    "eslint": "^9.39.4",
+    "jiti": "^2.7.0",
+    "prettier": "^3.2.5",
+    "turbo": "^2.0.14"
+  },
+  "description": "Demo store showcasing the Vori grocer-facing API: inventory reads and transaction writes."
+}

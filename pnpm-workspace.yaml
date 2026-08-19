@@ -1,0 +1,18 @@
+packages:
+  - "apps/**"
+  - "!apps/backend/.medusa/**"
+
+# pnpm 10+ reads these here rather than from package.json.
+overrides:
+  "@types/react": "19.0.5"
+  "@types/react-dom": "19.0.5"
+
+# Without this list pnpm refuses to run install scripts and exits non-zero.
+onlyBuiltDependencies:
+  - "@medusajs/telemetry"
+  - "@swc/core"
+  - esbuild
+  - msgpackr-extract
+  - protobufjs
+  - sharp
+  - unrs-resolver
