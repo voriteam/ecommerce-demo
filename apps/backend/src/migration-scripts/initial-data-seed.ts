@@ -14,6 +14,7 @@ import {
   createTaxRegionsWorkflow,
   linkSalesChannelsToApiKeyWorkflow,
   linkSalesChannelsToStockLocationWorkflow,
+  updateRegionsWorkflow,
   updateStoresWorkflow,
 } from "@medusajs/medusa/core-flows"
 
@@ -110,6 +111,12 @@ export default async function initial_data_seed({ container }: { container: Medu
   }
 
   logger.info("Seeding region data...")
+  // Stripe is only registered as a provider when a key is configured, and
+  // naming one that is not registered fails outright.
+  const paymentProviders = process.env.STRIPE_API_KEY
+    ? ["pp_stripe_stripe", "pp_system_default"]
+    : ["pp_system_default"]
+
   let region = await first<{ id: string; name: string }>(
     "region",
     ["id", "name"],
@@ -123,18 +130,35 @@ export default async function initial_data_seed({ container }: { container: Medu
             name: REGION_NAME,
             currency_code: "usd",
             countries,
-            // Naming a provider that is not registered fails the seed
-            // outright, so Stripe is listed only when a key is configured.
-            // Adding it to the region later is a checkbox in the admin under
-            // Settings > Regions.
-            payment_providers: process.env.STRIPE_API_KEY
-              ? ["pp_stripe_stripe", "pp_system_default"]
-              : ["pp_system_default"],
+            payment_providers: paymentProviders,
           },
         ],
       },
     })
     region = result[0]
+  }
+
+  // Reconciled on every run rather than only at creation. A store seeded
+  // before a Stripe key was configured would otherwise keep offering nothing
+  // but the manual provider at checkout, with nothing on screen to say why -
+  // so adding the key and running the seed again is all it takes.
+  const { data: regionProviders } = await query.graph({
+    entity: "region_payment_provider",
+    fields: ["payment_provider_id", "region_id"],
+  })
+  const alreadyEnabled = regionProviders
+    .filter((row) => row.region_id === region!.id)
+    .map((row) => row.payment_provider_id as string)
+  const missingProviders = paymentProviders.filter((id) => !alreadyEnabled.includes(id))
+
+  if (missingProviders.length) {
+    await updateRegionsWorkflow(container).run({
+      input: {
+        selector: { id: region.id },
+        update: { payment_providers: paymentProviders },
+      },
+    })
+    logger.info(`Enabled on ${REGION_NAME}: ${missingProviders.join(", ")}`)
   }
 
   logger.info("Seeding tax regions...")
