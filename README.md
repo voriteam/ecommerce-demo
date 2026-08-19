@@ -214,6 +214,27 @@ vori: 2 active tax rates charge a fixed amount per unit, which Medusa cannot exp
 
 If your store uses those, the sale is recorded without them and the total is short by that much.
 
+## Loyalty
+
+A sale is credited to the shopper's loyalty account when their phone number identifies one. The
+number comes from the shipping address at checkout, falling back to the customer record for a
+returning shopper who did not retype it.
+
+A shopper who has not shopped before is enrolled, and one who has keeps their points. A record the
+store created at the till often carries nothing but a phone number, so checkout fills in the name and
+email it knows — but only where the grocer's record is empty, never over what they already hold. The number is
+parsed first, so `(415) 555-1234`, `415-555-1234` and `+1 415 555 1234` are one shopper rather than
+three loyalty accounts holding a third of someone's points each. Parsed rather than pattern-matched,
+because an account key has to reject what is not a number as reliably as it accepts what is — an
+impossible area code that slips through enrols a shopper nobody can ever match again. The checkout
+checks the field too, since an email address in a phone box is the usual way a wrong number gets in.
+
+Loyalty never blocks a sale. A number that cannot be read, or a shopper lookup that fails, records an
+anonymous transaction rather than crediting the wrong person or failing the order.
+
+Points are earned, not spent: the transactions API has no way to redeem a reward, so redemption is
+out of scope here.
+
 ## Cancelling an order
 
 Cancelling an order in the admin gives the shopper their money back and reverses the sale in the

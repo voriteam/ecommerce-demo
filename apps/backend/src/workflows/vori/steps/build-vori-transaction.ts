@@ -45,6 +45,7 @@ export const buildVoriTransactionStep = createStep(
   "build-vori-transaction",
   async (input: { orderId: string }, { container }) => {
     const query = container.resolve(ContainerRegistrationKeys.QUERY)
+    const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
     const vori = container.resolve(VORI_MODULE) as VoriModuleService
 
     const { data: orders } = await query.graph({
@@ -63,6 +64,11 @@ export const buildVoriTransactionStep = createStep(
         "items.variant.id",
         "items.variant.metadata",
         "payment_collections.payments.*",
+        "customer.phone",
+        "customer.email",
+        "customer.first_name",
+        "customer.last_name",
+        "shipping_address.*",
       ],
       filters: { id: input.orderId },
     })
@@ -109,6 +115,35 @@ export const buildVoriTransactionStep = createStep(
       }
     })
 
+    // The number a shopper gave at checkout is where loyalty starts. The
+    // customer record is the fallback for a returning shopper who did not
+    // retype it. An unusable number simply means an anonymous sale.
+    const address = (order.shipping_address ?? {}) as Record<string, any>
+    const customer = (order.customer ?? {}) as Record<string, any>
+    const phone = address.phone ?? customer.phone
+
+    let shopperId: string | null = null
+
+    if (phone) {
+      try {
+        const shopper = await vori.findOrCreateShopper({
+          email: customer.email ?? order.email,
+          firstName: address.first_name ?? customer.first_name,
+          lastName: address.last_name ?? customer.last_name,
+          phone,
+          postalCode: address.postal_code,
+        })
+        shopperId = shopper?.id ?? null
+      } catch (error) {
+        // Loyalty is an addition to the sale, not a condition of it: a shopper
+        // service that is down must not stop the grocer's books being right.
+        logger.warn(
+          `vori: could not resolve a loyalty shopper for order ${order.id} — ` +
+            `recording the sale without one (${error instanceof Error ? error.message : String(error)})`,
+        )
+      }
+    }
+
     const request = buildTransaction({
       cardBrand: card.brand,
       cardLast4: card.last4,
@@ -119,6 +154,7 @@ export const buildVoriTransactionStep = createStep(
         paidCents: card.paidCents,
       },
       paymentReference: card.reference,
+      shopperId,
       storeId: vori.options.storeId!,
       transactionId,
     })

@@ -224,3 +224,23 @@ describe("a transaction", () => {
     expect(toVoriCardBrand("unionpay")).toBe("china_union_pay")
   })
 })
+
+describe("loyalty", () => {
+  it("links the sale to a shopper when one was identified", () => {
+    const transaction = buildTransaction({
+      order: order([milk], 998),
+      paymentReference: "stripe:pi_123",
+      shopperId: "1f0a9b2c-3d4e-7f60-8a1b-2c3d4e5f6a7b",
+      storeId: "12345",
+      transactionId: "01a01879-0000-7000-8000-000000000000",
+    })
+
+    expect(transaction.shopper_id).toBe("1f0a9b2c-3d4e-7f60-8a1b-2c3d4e5f6a7b")
+  })
+
+  it("records an anonymous sale rather than crediting the wrong person", () => {
+    // No shopper is not an error. Sending a placeholder or somebody else's
+    // account would put points on the wrong loyalty record.
+    expect(record(order([milk], 998)).shopper_id).toBeUndefined()
+  })
+})

@@ -208,6 +208,16 @@ const ShippingAddress = ({
         <Input
           label="Phone"
           name="shipping_address.phone"
+          type="tel"
+          // A phone number is what a loyalty account is keyed on, so a
+          // mistyped one enrols the wrong person or nobody. Checked here
+          // because this is where it can still be corrected; the server parses
+          // it properly and has the final say on whether it is a real number.
+          // Deliberately permissive about shape - 4155551234, 415-555-1234,
+          // (415) 555-1234, +1 415 555 1234, and an extension - while still
+          // rejecting an email address, which is what ends up here otherwise.
+          pattern="\+?1?[\s.\-]?\(?\d{3}\)?[\s.\-]?\d{3}[\s.\-]?\d{4}(\s*(x|ext\.?)\s*\d+)?"
+          title="Enter a 10-digit phone number, for example (415) 555-1234."
           autoComplete="tel"
           value={formData["shipping_address.phone"]}
           onChange={handleChange}

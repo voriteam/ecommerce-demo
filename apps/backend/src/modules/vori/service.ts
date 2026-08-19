@@ -11,6 +11,14 @@ import type {
 } from "./lib/mapping"
 import type { CreateTransactionRequest } from "./lib/transactions"
 import type { CreateRefundRequest, VoriTransaction } from "./lib/refunds"
+import { normalizePhone } from "./lib/phone"
+import {
+  missingShopperDetails,
+  shopperFromCheckout,
+  type CreateShopperRequest,
+  type UpdateShopperRequest,
+  type VoriShopper,
+} from "./lib/shoppers"
 
 const PAGE_SIZE = 100
 
@@ -243,6 +251,105 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
       }),
       { method: "POST", path: `/v1/transactions/${transactionId}/refunds` },
     )
+  }
+
+  /**
+   * The loyalty shopper with this phone number, or null.
+   *
+   * The number is normalised first, because a shopper who writes it a
+   * different way at checkout than they gave at the till is still the same
+   * shopper - and looking up the unnormalised form would miss them and enrol a
+   * duplicate.
+   *
+   * `/v1/shoppers` is not in the generated client yet, so this call is made
+   * directly. See lib/shoppers.ts for what that assumes.
+   */
+  async findShopperByPhone(phone: string): Promise<VoriShopper | null> {
+    const normalized = normalizePhone(phone)
+    if (!normalized) return null
+
+    const list = unwrap(
+      await this.client().GET("/v1/shoppers", {
+        params: { query: { phone_number: normalized, limit: 1 } },
+      }),
+      { method: "GET", path: "/v1/shoppers" },
+    )
+
+    return list.data[0] ?? null
+  }
+
+  /**
+   * Fills in details a shopper's record is missing.
+   *
+   * Takes a partial: nothing on the update request is actually required. The
+   * generated type marks `enrolled_in_loyalty_program` as always present only
+   * because the schema gives it a default, which is why the body is cast here
+   * rather than padded out with a field this has no reason to send.
+   */
+  async updateShopper(id: string, request: Partial<UpdateShopperRequest>): Promise<VoriShopper> {
+    return unwrap(
+      await this.client().PATCH("/v1/shoppers/{id}", {
+        params: { path: { id } },
+        body: request as UpdateShopperRequest,
+      }),
+      { method: "PATCH", path: `/v1/shoppers/${id}` },
+    )
+  }
+
+  /** Enrols a shopper. Throws VoriApiError if the API refuses. */
+  async createShopper(request: CreateShopperRequest): Promise<VoriShopper> {
+    return unwrap(await this.client().POST("/v1/shoppers", { body: request }), {
+      method: "POST",
+      path: "/v1/shoppers",
+    })
+  }
+
+  /**
+   * The shopper for this phone number, enrolling them if they are new.
+   *
+   * Looked up first so a returning shopper keeps their points. Two checkouts
+   * racing on the same number would both try to enrol, so a create that fails
+   * falls back to another lookup rather than to an error: whichever request
+   * lost the race still ends up with the shopper the other one made.
+   */
+  async findOrCreateShopper(details: {
+    email?: null | string
+    firstName?: null | string
+    lastName?: null | string
+    phone: string
+    postalCode?: null | string
+  }): Promise<VoriShopper | null> {
+    const normalized = normalizePhone(details.phone)
+    if (!normalized) return null
+
+    const existing = await this.findShopperByPhone(normalized)
+
+    if (existing) {
+      // A record created at the till often has nothing but a phone number on
+      // it. Checkout knows more, so fill the blanks - but only the blanks.
+      const update = missingShopperDetails(existing, details)
+      if (!update) return existing
+
+      try {
+        return await this.updateShopper(existing.id, update)
+      } catch (error) {
+        // Knowing who the shopper is matters less than crediting their points,
+        // so a failed update returns the shopper we already found.
+        this.logger_.warn(
+          `vori: could not fill in details for shopper ${existing.id} — ` +
+            (error instanceof Error ? error.message : String(error)),
+        )
+        return existing
+      }
+    }
+
+    try {
+      return await this.createShopper(shopperFromCheckout({ ...details, phone: normalized }))
+    } catch (error) {
+      const raced = await this.findShopperByPhone(normalized)
+      if (raced) return raced
+      throw error
+    }
   }
 
   async getSyncState(): Promise<SyncState> {

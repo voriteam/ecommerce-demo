@@ -188,6 +188,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/shoppers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List shoppers
+         * @description Lists shoppers across the whole banner, ordered by ID. Filter by phone number to find the shopper who gave it at checkout, and page through the results with the cursor parameters.
+         */
+        get: operations["listShoppers"];
+        put?: never;
+        /**
+         * Create a shopper
+         * @description Create a shopper
+         */
+        post: operations["createShopper"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/shoppers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve a shopper
+         * @description Retrieve a shopper
+         */
+        get: operations["getShopper"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a shopper
+         * @description Update a shopper
+         */
+        patch: operations["updateShopper"];
+        trace?: never;
+    };
     "/v1/store-departments": {
         parameters: {
             query?: never;
@@ -551,6 +599,10 @@ export interface components {
         };
         /** @enum {string} */
         BarcodeType: "EAN 13 Type 2 Without Check Digit" | "EAN-13" | "EAN-13 Without Check Digit" | "EAN-14" | "EAN-14 Without Check Digit" | "EAN-8" | "EAN-8 Without Check Digit" | "PLU" | "PRODUCE PLU" | "Type 2 EAN" | "Type 2 UPC" | "Unsanitized" | "UPC Shipping Container" | "UPC-A" | "UPC-A Type 2 Without Check Digit" | "UPC-A Without Check Digit" | "UPC-E" | "UPC-E Without Check Digit";
+        CapabilityRequiredException: {
+            /** @enum {string} */
+            error_code: "capability_not_enabled";
+        };
         /** @enum {string} */
         CardBrand: "american_express" | "atm" | "bill_me_later" | "china_union_pay" | "debit" | "diners_club" | "discover" | "ebt" | "jcb" | "mastercard" | "other" | "revolution_money" | "telecheck" | "undetermined" | "visa" | "voyager" | "wright_express";
         CompactFoodModifierCategory: {
@@ -946,6 +998,29 @@ export interface components {
              * @example -199.99
              */
             total: string;
+        };
+        CreateShopperRequest: {
+            /**
+             * Format: email
+             * @description Email address on file for the shopper.
+             */
+            email_address?: string | null;
+            /**
+             * @description Whether the shopper is enrolled in the loyalty program. Shoppers must explicitly opt into the loyalty program, typically at the POS. Digital gift card recipients are also stored as shoppers, but are only opted into the loyalty program after giving explicit permission.
+             * @default false
+             */
+            enrolled_in_loyalty_program: boolean;
+            /** @description Given name of the shopper. */
+            first_name?: string | null;
+            /** @description Family name of the shopper. */
+            last_name?: string | null;
+            /**
+             * Format: phone
+             * @description Phone number on file for the shopper, and what a loyalty member gives at checkout to be identified.
+             */
+            phone_number: string;
+            /** @description Postal code on file for the shopper. */
+            postal_code?: string | null;
         };
         CreateStoreDepartmentRequest: {
             /** @description Whether sales from this department are omitted from sales reporting. Defaults to false. */
@@ -1560,6 +1635,57 @@ export interface components {
         Resource: "*" | "accounting_integration" | "agent_chats" | "api_clients" | "asynchronous_tasks" | "banners" | "blackhawk_transactions" | "capabilities" | "coupons" | "custom_quick_actions" | "datacap_transactions" | "departments" | "discounts" | "ditto_auth_tokens" | "edge_agents" | "electronic_shelf_labels" | "employees" | "files" | "food_modifiers" | "gift_cards" | "gl_code_mappings" | "house_accounts" | "inventory" | "inventory_sessions" | "invoices" | "item_modifiers" | "label_dimension_sets" | "label_sheet_profiles" | "label_stock_products" | "lanes" | "loyalty_bonuses" | "loyalty_campaigns" | "loyalty_rewards" | "notification_templates" | "offers" | "order_guides" | "pos_banner_configurations" | "pos_orders" | "pos_tills" | "price_tags" | "product_ranges" | "products" | "promotions" | "purchase_orders" | "receiving" | "reporting" | "revision_sessions" | "revisions" | "roles" | "shopper_tags" | "shoppers" | "store_product_inventory_counts" | "store_product_lots" | "store_product_rules" | "store_product_tag_templates" | "store_snap_incentive_program_coupons" | "store_vendor_merge_requests" | "store_vendor_product_merge_requests" | "store_vendor_products" | "store_vendors" | "stores" | "tag_printings" | "tag_template_presets" | "tag_templates" | "tax_rates" | "users" | "variable_weights" | "vendor_merge_requests" | "vendor_product_merge_requests" | "vendors" | "wallet_payments" | "wic_products";
         /** @enum {string} */
         RoleName: "everyone" | "manager";
+        /** @description A person a store can recognize at checkout, whether as a loyalty member or as the holder of a gift card. A shopper belongs to the banner rather than to any one store. */
+        Shopper: {
+            /** @description Unique identifier for the record. */
+            id: string;
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            created_at: string;
+            /**
+             * Format: email
+             * @description Email address on file for the shopper.
+             */
+            email_address: string | null;
+            /** @description Whether the shopper has confirmed their email address. */
+            email_validated: boolean;
+            /** @description Whether the shopper is enrolled in the loyalty program. Shoppers must explicitly opt into the loyalty program, typically at the POS. Digital gift card recipients are also stored as shoppers, but are only opted into the loyalty program after giving explicit permission. */
+            enrolled_in_loyalty_program: boolean;
+            /** @description Given name of the shopper. */
+            first_name: string | null;
+            /** @description ID of the store where the shopper enrolled. */
+            joined_at_store_id: string | null;
+            /** @description Family name of the shopper. */
+            last_name: string | null;
+            /**
+             * Format: phone
+             * @description Phone number on file for the shopper, and what a loyalty member gives at checkout to be identified.
+             */
+            phone_number: string;
+            /**
+             * @description Loyalty points currently available to the shopper.
+             * @example 199.99
+             */
+            point_balance: string;
+            /** @description Postal code on file for the shopper. */
+            postal_code: string | null;
+            /** @description Whether the shopper has opted in to marketing emails. */
+            subscribed_to_email: boolean;
+            /** @description Whether the shopper has opted in to marketing text messages. */
+            subscribed_to_sms: boolean;
+            /**
+             * Format: date-time
+             * @description When the record was last changed.
+             */
+            updated_at: string;
+        };
+        ShopperList: {
+            data: components["schemas"]["Shopper"][];
+            /** @description Whether more records follow this page. */
+            has_more: boolean;
+        };
         /** @description A physical store location operating under a banner. */
         Store: {
             /** @description Unique identifier for the store. */
@@ -2501,6 +2627,29 @@ export interface components {
              */
             value?: string;
         };
+        UpdateShopperRequest: {
+            /**
+             * Format: email
+             * @description Email address on file for the shopper.
+             */
+            email_address?: string | null;
+            /**
+             * @description Whether the shopper is enrolled in the loyalty program. Shoppers must explicitly opt into the loyalty program, typically at the POS. Digital gift card recipients are also stored as shoppers, but are only opted into the loyalty program after giving explicit permission.
+             * @default false
+             */
+            enrolled_in_loyalty_program: boolean;
+            /** @description Given name of the shopper. */
+            first_name?: string | null;
+            /** @description Family name of the shopper. */
+            last_name?: string | null;
+            /**
+             * Format: phone
+             * @description Phone number on file for the shopper, and what a loyalty member gives at checkout to be identified.
+             */
+            phone_number?: string;
+            /** @description Postal code on file for the shopper. */
+            postal_code?: string | null;
+        };
         UpdateStoreDepartmentRequest: {
             /**
              * Format: date-time
@@ -3222,6 +3371,205 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Lane"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listShoppers: {
+        parameters: {
+            query?: {
+                /** @description Return records that precede the record with this ID, in list order. */
+                ending_before?: string;
+                /** @description Whether the shopper is enrolled in the loyalty program. */
+                enrolled_in_loyalty_program?: boolean;
+                /** @description Maximum number of records to return. */
+                limit?: number;
+                /** @description Phone number on file for the shopper. Matched exactly. */
+                phone_number?: string;
+                /** @description Return records that follow the record with this ID, in list order. */
+                starting_after?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopperList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictingListParametersError"] | components["schemas"]["InvalidListCursorError"];
+                };
+            };
+            /** @description The required capability is not enabled for the banner. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityRequiredException"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    createShopper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateShopperRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Shopper"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The required capability is not enabled for the banner. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityRequiredException"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    getShopper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Shopper"];
+                };
+            };
+            /** @description The required capability is not enabled for the banner. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityRequiredException"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateShopper: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateShopperRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Shopper"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The required capability is not enabled for the banner. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityRequiredException"];
                 };
             };
             403: {

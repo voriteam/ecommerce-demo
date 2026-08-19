@@ -120,10 +120,12 @@ export const buildTransaction = (args: {
   cardLast4?: null | string
   order: VoriOrderSnapshot
   paymentReference: string
+  /** The loyalty account this sale earns points for, when there is one. */
+  shopperId?: null | string
   storeId: string
   transactionId: string
 }): CreateTransactionRequest => {
-  const { cardBrand, cardLast4, order, paymentReference, storeId, transactionId } = args
+  const { cardBrand, cardLast4, order, paymentReference, shopperId, storeId, transactionId } = args
 
   if (order.lines.length === 0) {
     throw new TransactionBuildError(`Order ${order.id} has no items to record.`)
@@ -188,6 +190,10 @@ export const buildTransaction = (args: {
       source: "vori-ecommerce-demo",
     },
     payments: [payment],
+    // Links the sale to a loyalty account so it earns points. Left off for a
+    // shopper we could not identify, which records an anonymous sale rather
+    // than crediting the wrong person.
+    ...(shopperId ? { shopper_id: shopperId } : {}),
     // store_id is the only attribution this endpoint needs: Vori maintains the
     // virtual lane and employee that API-submitted orders are recorded
     // against, and naming a staffed lane would be rejected.
