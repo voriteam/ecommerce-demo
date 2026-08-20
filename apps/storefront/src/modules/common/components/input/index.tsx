@@ -41,6 +41,12 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
         <div className="flex relative z-0 w-full txt-compact-medium">
           <input
             type={inputType}
+            // The floating label is positioned over the input and the
+            // placeholder is deliberately blank, so this id is the only thing
+            // tying the two together. Without it the label points at nothing:
+            // screen readers announce an unlabelled box, and password managers
+            // fall back to guessing the field from its neighbours.
+            id={name}
             name={name}
             placeholder=" "
             required={required}
