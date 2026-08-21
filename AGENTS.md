@@ -208,4 +208,19 @@ pnpm seed:catalog       # fill the shelves from a Vori store (needs VORI_API_KEY
 pnpm sync:inventory     # run one inventory poll, the same one the scheduled job runs
 pnpm record:order <id>  # send one order to Vori again
 pnpm seed:store         # re-run the store bootstrap; idempotent
+pnpm clear:locks        # release the sync locks after a killed run; stop the dev server first
 ```
+
+### Stale sync locks
+
+The catalog and inventory workflows each take a Redis lock so a scheduled run and a hand-run one
+cannot interleave, and each releases it on the way out. Kill the dev server mid-run and that release
+never happens, so the lock survives until its TTL expires - fifteen minutes for inventory, thirty for
+the catalog - and every run in between fails with `Failed to acquire lock for key "vori-catalog-sync"`.
+
+`pnpm clear:locks` releases both. Nothing can distinguish a lock left by a dead process from one a
+live sync is holding, so stop the dev server before running it.
+
+Note that `pkill -f "medusa develop"` matches nothing: the process runs as `node .../cli.js develop`.
+Killing the wrong thing is how these locks get stranded in the first place - check for survivors with
+`ps aux | grep "cli.js develop"`.

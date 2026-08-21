@@ -18,6 +18,7 @@
     "seed:store": "pnpm --filter @vori-demo/backend exec medusa exec ./src/migration-scripts/initial-data-seed.ts",
     "seed:catalog": "pnpm --filter @vori-demo/backend exec medusa exec ./src/scripts/seed-vori-catalog.ts",
     "sync:inventory": "pnpm --filter @vori-demo/backend exec medusa exec ./src/scripts/sync-vori-inventory.ts",
+    "clear:locks": "pnpm --filter @vori-demo/backend exec medusa exec ./src/scripts/clear-vori-locks.ts",
     "generate:client": "pnpm --filter @vori-demo/backend run generate:client",
     "link:storefront": "pnpm --filter @vori-demo/backend exec medusa exec ./src/scripts/link-storefront.ts",
     "record:order": "pnpm --filter @vori-demo/backend exec medusa exec ./src/scripts/record-vori-order.ts"

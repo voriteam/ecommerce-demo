@@ -145,6 +145,10 @@ got to.
 Vori is the only writer of stock here, so a late poll shows a slightly stale number and never a wrong
 one. Set `VORI_SYNC_CRON` to something tighter for a live demo.
 
+Both this and `pnpm seed:catalog` take a lock so a scheduled run and a hand-run one cannot collide.
+If you stop the server mid-sync the lock outlives the process and the next run fails with `Failed to
+acquire lock`. Release it with `pnpm clear:locks`, once the server is stopped.
+
 A few behaviours are worth knowing about, because each of them is a decision rather than an accident:
 
 - A **fractional count** rounds down. The site never offers more than the store can put in a bag.
