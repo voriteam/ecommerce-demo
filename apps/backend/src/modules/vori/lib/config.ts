@@ -14,6 +14,11 @@ export type VoriConfig = {
   storeId: string | undefined
   syncCron: string
   syncEnabled: boolean
+  /**
+   * When true, a checkout rewrites the name, email and postal code on the
+   * loyalty record it matched. Off by default: see getVoriConfig.
+   */
+  updateShopperFromCheckout: boolean
   /** When false, build the transaction request but never send it. */
   writeEnabled: boolean
 }
@@ -29,6 +34,11 @@ export const getVoriConfig = (): VoriConfig => ({
   storeId: process.env.VORI_STORE_ID || undefined,
   syncCron: process.env.VORI_SYNC_CRON || "*/2 * * * *",
   syncEnabled: bool(process.env.VORI_SYNC_ENABLED, true),
+  // Off by default, because the grocer's own record is usually the better
+  // source: it may have been taken at the till, corrected by staff, or be the
+  // shopper's real name rather than whoever's card happened to pay. A store
+  // that would rather trust the checkout form turns this on deliberately.
+  updateShopperFromCheckout: bool(process.env.VORI_UPDATE_SHOPPER_FROM_CHECKOUT, false),
   writeEnabled: bool(process.env.VORI_WRITE_ENABLED, false),
 })
 

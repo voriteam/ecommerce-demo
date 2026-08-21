@@ -13,7 +13,7 @@ import type { CreateTransactionRequest } from "./lib/transactions"
 import type { CreateRefundRequest, VoriTransaction } from "./lib/refunds"
 import { normalizePhone } from "./lib/phone"
 import {
-  missingShopperDetails,
+  shopperDetailsToSync,
   shopperFromCheckout,
   type CreateShopperRequest,
   type UpdateShopperRequest,
@@ -279,7 +279,7 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
   }
 
   /**
-   * Fills in details a shopper's record is missing.
+   * Writes changed details onto a shopper's record.
    *
    * Takes a partial: nothing on the update request is actually required. The
    * generated type marks `enrolled_in_loyalty_program` as always present only
@@ -326,8 +326,11 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
 
     if (existing) {
       // A record created at the till often has nothing but a phone number on
-      // it. Checkout knows more, so fill the blanks - but only the blanks.
-      const update = missingShopperDetails(existing, details)
+      // it, so checkout fills what it can. Whether it also corrects details
+      // the grocer already holds is the store's call, not this code's.
+      const update = shopperDetailsToSync(existing, details, {
+        overwrite: this.options.updateShopperFromCheckout,
+      })
       if (!update) return existing
 
       try {
@@ -336,7 +339,7 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
         // Knowing who the shopper is matters less than crediting their points,
         // so a failed update returns the shopper we already found.
         this.logger_.warn(
-          `vori: could not fill in details for shopper ${existing.id} — ` +
+          `vori: could not update details for shopper ${existing.id} — ` +
             (error instanceof Error ? error.message : String(error)),
         )
         return existing

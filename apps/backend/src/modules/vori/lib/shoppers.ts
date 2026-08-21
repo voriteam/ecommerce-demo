@@ -35,15 +35,21 @@ export const shopperFromCheckout = (details: {
 })
 
 /**
- * The details this checkout can fill in that the shopper's record is missing.
+ * The details this checkout should write onto the shopper's record.
  *
- * Only ever fills blanks. A grocer's own record is the better source - it may
- * have been taken at the till, corrected by staff, or be the shopper's real
- * name rather than whoever's card paid - so a web form does not get to
- * overwrite it. Returns null when there is nothing to add, so a matched
- * shopper costs one request rather than two.
+ * Two modes, because there is no single right answer about who knows a
+ * shopper's name better. By default only blanks are filled: a grocer's own
+ * record may have been taken at the till, corrected by staff, or be the
+ * shopper's real name rather than whoever's card happened to pay, so a web
+ * form does not get to overwrite it. With `overwrite`, checkout is taken as
+ * the current truth instead - which is what a store wants if shoppers move,
+ * remarry or fix a typo and expect the change to stick.
+ *
+ * Either way, what checkout does not know it does not touch: a missing field
+ * leaves whatever the grocer holds rather than clearing it. Returns null when
+ * there is nothing to send, so a matched shopper costs one request not two.
  */
-export const missingShopperDetails = (
+export const shopperDetailsToSync = (
   shopper: VoriShopper,
   details: {
     email?: null | string
@@ -51,17 +57,22 @@ export const missingShopperDetails = (
     lastName?: null | string
     postalCode?: null | string
   },
+  { overwrite = false }: { overwrite?: boolean } = {},
 ): Partial<UpdateShopperRequest> | null => {
-  const filled: Partial<UpdateShopperRequest> = {}
+  const update: Partial<UpdateShopperRequest> = {}
 
-  if (!shopper.first_name && details.firstName) filled.first_name = details.firstName
-  if (!shopper.last_name && details.lastName) filled.last_name = details.lastName
-  if (!shopper.email_address && details.email) filled.email_address = details.email
-  if (!shopper.postal_code && details.postalCode) filled.postal_code = details.postalCode
+  // Present on the form, and either genuinely different or filling a blank.
+  const wanted = (value: null | string | undefined, held: null | string | undefined) =>
+    Boolean(value) && (overwrite ? value !== held : !held)
 
-  // Only the fields being filled are sent. `enrolled_in_loyalty_program` in
-  // particular is left out: nothing on this request is required, and a
-  // checkout adding somebody's surname has no business restating whether they
-  // are in the loyalty programme.
-  return Object.keys(filled).length ? filled : null
+  if (wanted(details.firstName, shopper.first_name)) update.first_name = details.firstName!
+  if (wanted(details.lastName, shopper.last_name)) update.last_name = details.lastName!
+  if (wanted(details.email, shopper.email_address)) update.email_address = details.email!
+  if (wanted(details.postalCode, shopper.postal_code)) update.postal_code = details.postalCode!
+
+  // Only the fields actually changing are sent. `enrolled_in_loyalty_program`
+  // in particular is left out: nothing on this request is required, and a
+  // checkout correcting somebody's surname has no business restating whether
+  // they are in the loyalty programme.
+  return Object.keys(update).length ? update : null
 }

@@ -226,7 +226,11 @@ returning shopper who did not retype it.
 
 A shopper who has not shopped before is enrolled, and one who has keeps their points. A record the
 store created at the till often carries nothing but a phone number, so checkout fills in the name and
-email it knows — but only where the grocer's record is empty, never over what they already hold. The number is
+email it knows — but only where the grocer's record is empty, never over what they already hold.
+Their record may have been taken at the till, corrected by staff, or be the shopper's real name
+rather than whoever's card happened to pay. Set `VORI_UPDATE_SHOPPER_FROM_CHECKOUT=true` to treat
+the checkout form as the current truth instead, so a shopper who moves or changes their name sees it
+stick; a field the form leaves empty is never cleared either way. The number is
 parsed first, so `(415) 555-1234`, `415-555-1234` and `+1 415 555 1234` are one shopper rather than
 three loyalty accounts holding a third of someone's points each. Parsed rather than pattern-matched,
 because an account key has to reject what is not a number as reliably as it accepts what is — an

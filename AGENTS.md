@@ -186,6 +186,10 @@ Rules that are load-bearing rather than stylistic, each with the failure it prev
 - **Writes stay off by default.** `VORI_WRITE_ENABLED=false` is the shipped value and the only gate;
   turning it on records real transactions in a real grocer's books. Never flip a default to make
   something easier to demonstrate.
+- **A checkout does not correct a loyalty record by default.** It fills blanks only, because the
+  grocer's copy may have been taken at the till, corrected by staff, or be the shopper's real name
+  rather than whoever's card paid. `VORI_UPDATE_SHOPPER_FROM_CHECKOUT=true` opts into treating
+  the form as the current truth. Neither mode clears a field the form left empty.
 - **All money is integer cents until the moment it is formatted.** Vori re-adds every line and
   rejects a transaction that does not reconcile, so one float turns into a rejected sale much later.
 - **Shipping is free on purpose.** A shipping charge would make the amount charged disagree with the
