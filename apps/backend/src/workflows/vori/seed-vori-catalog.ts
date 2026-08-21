@@ -16,6 +16,7 @@ export type SeedCatalogResult = {
   categories: number
   productsDeactivated: number
   imagesFound: number
+  imagesFromVori: number
   levelsSet: number
   productsCreated: number
   productsTaxed: number
@@ -56,15 +57,18 @@ export const seedVoriCatalogWorkflow = createWorkflow("seed-vori-catalog", () =>
   const departments = transform({ catalog }, (data) => data.catalog.departments)
   const categoryIds = upsertVoriCategoriesStep(departments)
 
-  // The Vori API carries no imagery, so photography is matched on the barcode
-  // that scans at the register. A product without a match is sold without a
+  // The grocer's own photography comes down with the catalog and is preferred.
+  // Anything they have no picture of is matched on the barcode that scans at
+  // the register, and a product with no match either way is sold without a
   // picture rather than not sold.
-  const images = fetchProductImagesStep(transform({ catalog }, (data) => data.catalog.products))
+  const photography = fetchProductImagesStep(
+    transform({ catalog }, (data) => data.catalog.products),
+  )
 
   const products = upsertVoriProductsStep(
-    transform({ catalog, categoryIds, images, store }, (data) => ({
+    transform({ catalog, categoryIds, photography, store }, (data) => ({
       categoryIds: data.categoryIds,
-      images: data.images,
+      photography: data.photography,
       products: data.catalog.products,
       store: data.store,
     })),
@@ -102,10 +106,11 @@ export const seedVoriCatalogWorkflow = createWorkflow("seed-vori-catalog", () =>
 
   return new WorkflowResponse(
     transform(
-      { catalog, categoryIds, images, levelsSet, products, taxRates, taxed, withdrawn },
+      { catalog, categoryIds, levelsSet, photography, products, taxRates, taxed, withdrawn },
       (data): SeedCatalogResult => ({
         categories: Object.keys(data.categoryIds).length,
-        imagesFound: Object.keys(data.images).length,
+        imagesFound: Object.keys(data.photography).length,
+        imagesFromVori: Object.values(data.photography).filter((p) => p.source === "vori").length,
         levelsSet: data.levelsSet,
         productsCreated: data.products.created,
         productsDeactivated: data.withdrawn.deactivated,

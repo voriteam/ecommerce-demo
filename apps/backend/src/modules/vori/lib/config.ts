@@ -11,6 +11,11 @@
 export type VoriConfig = {
   apiKey: string | undefined
   baseUrl: string
+  /**
+   * When false, the Open Food Facts fallback is skipped. The grocer's own
+   * photography is unaffected - it arrives with the catalog either way.
+   */
+  openFoodFactsEnabled: boolean
   storeId: string | undefined
   syncCron: string
   syncEnabled: boolean
@@ -31,6 +36,7 @@ const bool = (value: string | undefined, fallback: boolean): boolean => {
 export const getVoriConfig = (): VoriConfig => ({
   apiKey: process.env.VORI_API_KEY || undefined,
   baseUrl: process.env.VORI_API_BASE_URL || "https://api.vori.com",
+  openFoodFactsEnabled: bool(process.env.OPEN_FOOD_FACTS_ENABLED, true),
   storeId: process.env.VORI_STORE_ID || undefined,
   syncCron: process.env.VORI_SYNC_CRON || "*/2 * * * *",
   syncEnabled: bool(process.env.VORI_SYNC_ENABLED, true),

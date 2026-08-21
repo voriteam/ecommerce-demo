@@ -40,9 +40,14 @@ const nextConfig = {
         hostname: "*.s3.amazonaws.com",
       },
       {
-        // Product photography is hot-linked from Open Food Facts rather than
-        // copied into this store, so nothing here is ever hosting someone
-        // else's images.
+        // The grocer's own product photography, hot-linked from Vori's bucket.
+        protocol: "https",
+        hostname: "images.vori.com",
+      },
+      {
+        // The fallback, for products the grocer has no photo of their own.
+        // Hot-linked rather than copied into this store, so nothing here is
+        // ever hosting someone else's images.
         protocol: "https",
         hostname: "images.openfoodfacts.org",
       },

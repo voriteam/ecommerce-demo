@@ -3,11 +3,11 @@ import type { VoriLogger } from "./client"
 /**
  * Product photography, by barcode, from Open Food Facts.
  *
- * The Vori API carries no images - there is no image, photo or media field on
- * a store product - but it does carry the barcode that was scanned at the
- * register, and that is the same identifier Open Food Facts files its
- * photography under. So the catalog can be illustrated without the grocer
- * uploading anything.
+ * The fallback, not the first choice. A Vori store product carries the grocer's
+ * own photography and that always wins; this is what fills the gaps for the
+ * products they have never photographed. What makes it possible is the barcode
+ * scanned at the register, which is the same identifier Open Food Facts files
+ * its photography under.
  *
  * Images are linked, never copied: what is stored against a product is a URL
  * on images.openfoodfacts.org. Their photography is contributed by the public

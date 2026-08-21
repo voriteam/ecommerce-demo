@@ -7,6 +7,73 @@ export type VoriStoreProductInventory = components["schemas"]["StoreProductInven
 export type VoriStoreDepartment = components["schemas"]["StoreDepartment"]
 export type VoriTaxRate = components["schemas"]["TaxRate"]
 export type VoriCompactTaxRate = components["schemas"]["CompactTaxRate"]
+export type VoriProductImage = components["schemas"]["CompactStoreProductImage"]
+
+/**
+ * The photography settled on for one product, and which source won.
+ *
+ * `thumbnail` and `urls` are separate because they are genuinely different
+ * pictures: a grocer's thumbnail is a small crop meant for a catalog tile,
+ * while a product page wants the full-size original behind it.
+ */
+export type ProductPhotography = {
+  source: "open food facts" | "vori"
+  thumbnail: string
+  urls: [string, ...string[]]
+}
+
+/**
+ * The grocer's own photography for a product, lead shot first.
+ *
+ * Null when the store has uploaded none, which is the signal to fall back to
+ * Open Food Facts. Vori wins wherever it has anything at all: it is the
+ * grocer's own picture of the thing on their shelf. The two sources are never
+ * mixed into one gallery - a packshot beside a stranger's phone photo reads as
+ * a broken page rather than a fuller one.
+ */
+export const voriProductPhotography = (product: VoriStoreProduct): null | ProductPhotography => {
+  const usable = (product.images ?? []).filter((image) => Boolean(image.url))
+  if (usable.length === 0) return null
+
+  // No image flagged, or several, both mean the grocer never really chose:
+  // take the first that claims it and otherwise leave the API's order alone.
+  const flagged = usable.findIndex((image) => image.is_primary)
+  const lead = usable[flagged === -1 ? 0 : flagged]
+
+  const urls = [lead.url, ...usable.filter((image) => image !== lead).map((image) => image.url)]
+
+  return {
+    source: "vori",
+    thumbnail: lead.thumbnail_url || lead.url,
+    // Deduped, so one picture listed twice does not become two gallery slots.
+    urls: [...new Set(urls)] as [string, ...string[]],
+  }
+}
+
+/**
+ * A single fallback image in the same shape, so nothing downstream has to know
+ * which source a product's photography came from.
+ */
+export const fallbackPhotography = (url: string): ProductPhotography => ({
+  source: "open food facts",
+  thumbnail: url,
+  urls: [url],
+})
+
+/**
+ * Whether a stored image URL is one of the grocer's own.
+ *
+ * Runs over whatever is already in the database, so it has to treat anything
+ * unparseable as somebody else's rather than throwing.
+ */
+export const isVoriHostedImage = (url: string): boolean => {
+  try {
+    const { hostname } = new URL(url)
+    return hostname === "vori.com" || hostname.endsWith(".vori.com")
+  } catch {
+    return false
+  }
+}
 
 /**
  * The one product option every seeded product carries.
@@ -92,7 +159,7 @@ export type MedusaProductInput = {
   description?: string
   external_id: string
   handle: string
-  images?: { url: string }[]
+  images?: { rank: number; url: string }[]
   metadata: Record<string, unknown>
   options: { title: string; values: string[] }[]
   sales_channels?: { id: string }[]
@@ -128,7 +195,7 @@ export const voriProductToMedusa = (
   product: VoriStoreProduct,
   options: {
     categoryIds?: string[]
-    imageUrl?: string
+    photography?: ProductPhotography
     salesChannelIds?: string[]
     shippingProfileId?: string
   } = {},
@@ -155,15 +222,24 @@ export const voriProductToMedusa = (
     description: descriptionParts.length ? descriptionParts.join(" · ") : undefined,
     external_id: product.id,
     handle: productSlug(product),
-    // Linked, not copied: the URL points at Open Food Facts, so this store
+    // Linked, not copied: the URLs point at the grocer's own bucket, or at
+    // Open Food Facts where they have no picture of their own, so this store
     // never hosts photography it does not own.
-    images: options.imageUrl ? [{ url: options.imageUrl }] : undefined,
+    //
+    // `rank` is set explicitly because Medusa only derives it from array order
+    // when a product is created. A refresh leaves it alone, so without this
+    // every image would settle at the same rank and the lead shot would become
+    // whichever row the database happened to return first.
+    images: options.photography?.urls.map((url, rank) => ({ rank, url })),
     metadata: voriProductMetadata(product),
     options: [{ title: FORMAT_OPTION, values: [format] }],
     sales_channels: options.salesChannelIds?.map((id) => ({ id })),
     shipping_profile_id: options.shippingProfileId,
     status: "published",
-    thumbnail: options.imageUrl,
+    // The grocer's small crop where there is one. A catalog tile is a few
+    // hundred pixels wide and the storefront serves images unoptimized, so the
+    // full-size original would be a quarter of a megabyte per tile on a grid.
+    thumbnail: options.photography?.thumbnail,
     title: product.name,
     variants: [
       {

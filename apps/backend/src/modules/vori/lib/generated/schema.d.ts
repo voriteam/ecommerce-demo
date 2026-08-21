@@ -297,7 +297,11 @@ export interface paths {
          */
         get: operations["listStoreProductInventory"];
         put?: never;
-        post?: never;
+        /**
+         * Update store product inventory
+         * @description Sets or adjusts the on-hand quantity for the selected products, their reorder levels, or both. Every product a request names must resolve, or nothing is written.
+         */
+        post: operations["upsertStoreProductInventory"];
         delete?: never;
         options?: never;
         head?: never;
@@ -726,6 +730,17 @@ export interface components {
              * @description When the record was last changed.
              */
             updated_at: string;
+        };
+        /** @description A photo of a product. */
+        CompactStoreProductImage: {
+            /** @description Unique identifier for the image. */
+            id: string;
+            /** @description Whether this is the primary display image for the product. */
+            is_primary: boolean;
+            /** @description The thumbnail image. */
+            thumbnail_url: string | null;
+            /** @description The full-size image. */
+            url: string;
         };
         CompactStoreProductInventory: {
             /** @example 199.99 */
@@ -1476,6 +1491,10 @@ export interface components {
             /** @enum {string} */
             error_code: "invalid_store";
         };
+        InvalidStoreProductsError: {
+            /** @enum {string} */
+            error_code: "invalid_store_products";
+        };
         InvalidStoresError: {
             /** @enum {string} */
             error_code: "invalid_stores";
@@ -1493,7 +1512,25 @@ export interface components {
             error_code: "invalid_variable_weights";
         };
         /** @enum {string} */
-        InventoryChangeSourceType: "CLEAR_ON_ORDER" | "DASH_PRODUCT_DETAILS" | "DASHBOARD_INVENTORY_PAGE" | "HANDHELD_INVENTORY_COUNT" | "HANDHELD_INVENTORY_MANUAL" | "HANDHELD_INVENTORY_RESTOCK" | "HANDHELD_INVENTORY_SHRINK" | "HANDHELD_ORDERING_COUNT" | "HANDHELD_PRODUCT_MANUAL" | "INVENTORY_RECOUNT" | "INVENTORY_UPLOAD" | "INVOICE_SHIPPED_QTY" | "ONBOARDING_APL_IMPORT" | "POS_REFUND" | "POS_SALE" | "PURCHASE_ORDER" | "RDS_IMPORT" | "STORE_TRANSFER";
+        InventoryChangeSourceType: "API" | "CLEAR_ON_ORDER" | "DASH_PRODUCT_DETAILS" | "DASHBOARD_INVENTORY_PAGE" | "HANDHELD_INVENTORY_COUNT" | "HANDHELD_INVENTORY_MANUAL" | "HANDHELD_INVENTORY_RESTOCK" | "HANDHELD_INVENTORY_SHRINK" | "HANDHELD_ORDERING_COUNT" | "HANDHELD_PRODUCT_MANUAL" | "INVENTORY_RECOUNT" | "INVENTORY_UPLOAD" | "INVOICE_SHIPPED_QTY" | "ONBOARDING_APL_IMPORT" | "POS_REFUND" | "POS_SALE" | "PURCHASE_ORDER" | "RDS_IMPORT" | "STORE_TRANSFER";
+        /** @description A change to a product's on-hand quantity. */
+        InventoryUpdate: {
+            /** @description A note explaining the change. */
+            reason_description?: string | null;
+            /** @description Why the quantity changed. */
+            reason_type?: components["schemas"]["InventoryUpdateReasonType"];
+            /** @description Whether the value replaces (`set`) the on-hand quantity or moves (`adjustment`) it by that amount. */
+            type: components["schemas"]["InventoryUpdateType"];
+            /**
+             * @description The quantity to set the on-hand to, or by which to adjust it. Negative values reduce it.
+             * @example 199.99
+             */
+            value: string;
+        };
+        /** @enum {string} */
+        InventoryUpdateReasonType: "shrink_damage" | "shrink_donation" | "shrink_other" | "shrink_spoilage" | "shrink_theft";
+        /** @enum {string} */
+        InventoryUpdateType: "adjustment" | "set";
         ItemCodeIdentifier: {
             item_code: string;
             type: components["schemas"]["StoreVendorProductIdentifierType"];
@@ -1575,6 +1612,14 @@ export interface components {
             /** @enum {string} */
             error_code: "missing_store";
         };
+        MissingStoreProductSelectionError: {
+            /** @enum {string} */
+            error_code: "missing_store_product_selection";
+        };
+        MultipleBannersSelectedError: {
+            /** @enum {string} */
+            error_code: "multiple_banners_selected";
+        };
         NoBannerAssociationError: {
             /** @enum {string} */
             error_code: "no_banner_association";
@@ -1632,7 +1677,7 @@ export interface components {
             transaction_id: string;
         };
         /** @enum {string} */
-        Resource: "*" | "accounting_integration" | "agent_chats" | "api_clients" | "asynchronous_tasks" | "banners" | "blackhawk_transactions" | "capabilities" | "coupons" | "custom_quick_actions" | "datacap_transactions" | "departments" | "discounts" | "ditto_auth_tokens" | "edge_agents" | "electronic_shelf_labels" | "employees" | "files" | "food_modifiers" | "gift_cards" | "gl_code_mappings" | "house_accounts" | "inventory" | "inventory_sessions" | "invoices" | "item_modifiers" | "label_dimension_sets" | "label_sheet_profiles" | "label_stock_products" | "lanes" | "loyalty_bonuses" | "loyalty_campaigns" | "loyalty_rewards" | "notification_templates" | "offers" | "order_guides" | "pos_banner_configurations" | "pos_orders" | "pos_tills" | "price_tags" | "product_ranges" | "products" | "promotions" | "purchase_orders" | "receiving" | "reporting" | "revision_sessions" | "revisions" | "roles" | "shopper_tags" | "shoppers" | "store_product_inventory_counts" | "store_product_lots" | "store_product_rules" | "store_product_tag_templates" | "store_snap_incentive_program_coupons" | "store_vendor_merge_requests" | "store_vendor_product_merge_requests" | "store_vendor_products" | "store_vendors" | "stores" | "tag_printings" | "tag_template_presets" | "tag_templates" | "tax_rates" | "users" | "variable_weights" | "vendor_merge_requests" | "vendor_product_merge_requests" | "vendors" | "wallet_payments" | "wic_products";
+        Resource: "*" | "accounting_integration" | "agent_chats" | "api_clients" | "asynchronous_tasks" | "banners" | "blackhawk_transactions" | "capabilities" | "coupons" | "custom_quick_actions" | "datacap_transactions" | "departments" | "discounts" | "ditto_auth_tokens" | "edge_agents" | "electronic_shelf_labels" | "employees" | "files" | "food_modifiers" | "gift_cards" | "gl_code_mappings" | "house_accounts" | "inventory" | "inventory_sessions" | "inventory_settings" | "invoices" | "item_modifiers" | "label_dimension_sets" | "label_sheet_profiles" | "label_stock_products" | "lanes" | "loyalty_bonuses" | "loyalty_campaigns" | "loyalty_rewards" | "notification_templates" | "offers" | "order_guides" | "pos_banner_configurations" | "pos_orders" | "pos_tills" | "price_tags" | "product_ranges" | "products" | "promotions" | "purchase_orders" | "receiving" | "reporting" | "revision_sessions" | "revisions" | "roles" | "shopper_tags" | "shoppers" | "store_product_inventory_counts" | "store_product_lots" | "store_product_rules" | "store_product_tag_templates" | "store_snap_incentive_program_coupons" | "store_vendor_merge_requests" | "store_vendor_product_merge_requests" | "store_vendor_products" | "store_vendors" | "stores" | "tag_printings" | "tag_template_presets" | "tag_templates" | "tax_rates" | "users" | "variable_weights" | "vendor_merge_requests" | "vendor_product_merge_requests" | "vendors" | "wallet_payments" | "wic_products";
         /** @enum {string} */
         RoleName: "everyone" | "manager";
         /** @description A person a store can recognize at checkout, whether as a loyalty member or as the holder of a gift card. A shopper belongs to the banner rather than to any one store. */
@@ -1755,6 +1800,8 @@ export interface components {
             ecommerce_enabled: boolean;
             /** @description Food modifier categories, and their modifiers, available for this product, ordered by category priority. */
             food_modifier_categories: components["schemas"]["CompactFoodModifierCategory"][];
+            /** @description Photos of this product. */
+            images: components["schemas"]["CompactStoreProductImage"][];
             /** @description Current inventory levels. Included when requested via `include=inventory`. */
             inventory?: components["schemas"]["CompactStoreProductInventory"];
             /** @description Whether the product is a Blackhawk gift card. */
@@ -1866,6 +1913,15 @@ export interface components {
         StoreProductPriceSource: "ACCEPTED_COST_CHANGE" | "BULK_UPDATE" | "COST_FILE_IMPORT" | "PRODUCT_DETAILS" | "PRODUCT_RULES";
         /** @enum {string} */
         StoreProductPriceSourcePlatform: "API" | "CDC_PIPELINE" | "CLI" | "MOBILE" | "WEB";
+        /** @description Selects the store products a request applies to. */
+        StoreProductSelectionCriteria: {
+            /** @description Barcodes to select. A barcode carried by products in several stores selects all of them unless store_id is supplied. */
+            barcodes?: string[];
+            /** @description Store product IDs to select. */
+            ids?: string[];
+            /** @description Restricts the selection to one store. Omit to select matching products across the whole banner. */
+            store_id?: string;
+        };
         /** @enum {string} */
         StoreVendorProductIdentifierType: "barcode" | "description" | "item_code";
         /** @description A tax applied to products at a store, charged as a flat amount or a percentage. */
@@ -2780,6 +2836,28 @@ export interface components {
              * @example 199.99
              */
             value?: string;
+        };
+        /** @description The products to update, and the reorder levels or on-hand quantity to write to them. */
+        UpsertStoreProductInventoryRequest: {
+            /** @description The change to make to the on-hand quantity. Omit it to update only the reorder levels. */
+            inventory?: components["schemas"]["InventoryUpdate"];
+            /**
+             * @description The most of this product the store wants on hand. Send null to clear it; omit it to leave it as it is.
+             * @example 199.99
+             */
+            max_stock?: string | null;
+            /**
+             * @description The on-hand quantity at which the product should be reordered. Send null to clear it; omit it to leave it as it is.
+             * @example 199.99
+             */
+            min_par?: string | null;
+            /** @description Criteria used to select products whose inventory will be updated. */
+            store_product_selection_criteria?: components["schemas"]["StoreProductSelectionCriteria"];
+        };
+        /** @description The outcome of an inventory update. The updated products are not returned. */
+        UpsertStoreProductInventoryResponse: {
+            /** @description How many products the request updated. */
+            updated_count: number;
         };
         /** @description The weight of a tare container a product is sold in, such as a produce bag. It is subtracted from the scale reading so the shopper pays for the contents rather than the packaging. */
         VariableWeight: {
@@ -3809,6 +3887,45 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    upsertStoreProductInventory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpsertStoreProductInventoryRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UpsertStoreProductInventoryResponse"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidStoreProductsError"] | components["schemas"]["MissingStoreProductSelectionError"] | components["schemas"]["MultipleBannersSelectedError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"];
                 };
             };
         };

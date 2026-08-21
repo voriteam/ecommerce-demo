@@ -12,7 +12,11 @@ import {
 import { seedVoriCatalogWorkflow } from "../../src/workflows/vori/seed-vori-catalog"
 import { recordVoriTransactionWorkflow } from "../../src/workflows/vori/record-vori-transaction"
 import { syncVoriInventoryWorkflow } from "../../src/workflows/vori/sync-vori-inventory"
-import { catalogFixture, taxRateFixture } from "../../src/modules/vori/lib/fixtures/store-products"
+import {
+  catalogFixture,
+  photographedProduct,
+  taxRateFixture,
+} from "../../src/modules/vori/lib/fixtures/store-products"
 import { VORI_MODULE } from "../../src/modules/vori"
 import type VoriModuleService from "../../src/modules/vori/service"
 
@@ -381,6 +385,102 @@ medusaIntegrationTestRunner({
           fields: ["status"],
         })
         expect(products.filter((p: any) => p.status === "published")).toHaveLength(5)
+      })
+    })
+
+    describe("product photography", () => {
+      /** Serves one product, plus the departments and rates the seed needs. */
+      const servePhotographyCatalog = (product: (typeof catalogFixture)[number]) => {
+        handlers.push((url) => {
+          if (url.pathname === "/v1/store-departments")
+            return { data: DEPARTMENTS, has_more: false }
+          if (url.pathname === "/v1/store-products") return { data: [product], has_more: false }
+          if (url.pathname === "/v1/tax-rates")
+            return { data: taxRateFixture.filter((r) => r.active), has_more: false }
+          return undefined
+        })
+      }
+
+      /** Open Food Facts, which would match this product's barcode if asked. */
+      const serveOpenFoodFacts = () => {
+        handlers.push((url) => {
+          if (url.hostname !== "world.openfoodfacts.org") return undefined
+          return {
+            products: [
+              { code: photographedProduct.barcode, image_front_url: "https://images.openfoodfacts.org/900201.jpg" },
+            ],
+          }
+        })
+      }
+
+      const photographyOf = async (externalId: string) => {
+        const query = getContainer().resolve("query")
+        const { data } = await query.graph({
+          entity: "product",
+          fields: ["external_id", "thumbnail", "images.url", "images.rank"],
+          filters: { external_id: [externalId] },
+        })
+        return data[0]
+      }
+
+      it("uses the grocer's own photography and does not go looking elsewhere", async () => {
+        servePhotographyCatalog(photographedProduct)
+        serveOpenFoodFacts()
+
+        const { result } = await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        expect(result.imagesFromVori).toBe(1)
+
+        const product = await photographyOf("900201")
+        // The flagged shot leads, and the tile gets the small crop.
+        expect(product.thumbnail).toBe("https://images.vori.com/b_thumb.webp")
+        expect(product.images.map((i: any) => i.url)).toEqual([
+          "https://images.vori.com/b.webp",
+          "https://images.vori.com/a.webp",
+          "https://images.vori.com/c.webp",
+        ])
+
+        // The sharp assertion: a product the grocer has photographed must not
+        // cost a request to a free public service.
+        expect(requests.some((r) => r.includes(photographedProduct.barcode))).toBe(false)
+      })
+
+      it("falls back to Open Food Facts for a product with no photography", async () => {
+        servePhotographyCatalog({ ...photographedProduct, images: [] })
+        serveOpenFoodFacts()
+
+        const { result } = await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        expect(result.imagesFound).toBe(1)
+        expect(result.imagesFromVori).toBe(0)
+
+        const product = await photographyOf("900201")
+        expect(product.thumbnail).toBe("https://images.openfoodfacts.org/900201.jpg")
+        expect(product.images.map((i: any) => i.url)).toEqual(["https://images.openfoodfacts.org/900201.jpg"])
+      })
+
+      it("replaces a fallback picture once the grocer uploads their own", async () => {
+        servePhotographyCatalog({ ...photographedProduct, images: [] })
+        serveOpenFoodFacts()
+        await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        expect((await photographyOf("900201")).thumbnail).toBe("https://images.openfoodfacts.org/900201.jpg")
+
+        // The same product, now photographed by the store.
+        handlers = []
+        servePhotographyCatalog(photographedProduct)
+        serveOpenFoodFacts()
+
+        await seedVoriCatalogWorkflow(getContainer()).run({ input: {} })
+
+        const product = await photographyOf("900201")
+        expect(product.thumbnail).toBe("https://images.vori.com/b_thumb.webp")
+        // Swapped, not accumulated - the borrowed photo is gone.
+        expect(product.images.map((i: any) => i.url)).toEqual([
+          "https://images.vori.com/b.webp",
+          "https://images.vori.com/a.webp",
+          "https://images.vori.com/c.webp",
+        ])
       })
     })
 

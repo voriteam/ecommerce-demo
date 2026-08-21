@@ -115,18 +115,27 @@ down: that is far likelier to be a bad response than a grocer withdrawing everyt
 
 ## Product photography
 
-The Vori API carries no images, so the catalog is illustrated from
-[Open Food Facts](https://world.openfoodfacts.org) instead, matched on the barcode that scans at the
-register. Roughly half a real grocery catalog gets a photo; the rest is sold without one.
+A product shows the grocer's own photography wherever they have any. It comes down with the catalog,
+every shot of it, led by the one they picked as the main image; a catalog tile uses the small crop
+they had rendered and the product page the full-size original.
 
-Nothing is downloaded. What is stored against a product is a URL on `images.openfoodfacts.org`, so
-this store never hosts anyone else's photography. Their images are contributed by the public under
+Products the grocer has never photographed are illustrated from
+[Open Food Facts](https://world.openfoodfacts.org) instead, matched on the barcode that scans at the
+register. Roughly half of those find a photo; the rest are sold without one. The two are never
+mixed on one product — a packshot beside a stranger's phone snap reads as a broken page rather than
+a fuller one.
+
+Nothing is downloaded either way. What is stored against a product is a URL, on `images.vori.com` or
+on `images.openfoodfacts.org`, so this store never hosts photography it does not own. Open Food Facts
+images are contributed by the public under
 [CC BY-SA](https://creativecommons.org/licenses/by-sa/3.0/) — credit them if you put this in front of
 an audience.
 
-Lookups happen during `pnpm seed:catalog`, batched a hundred barcodes to a request, and a product
-that already has a photo is not looked up again. Set `OPEN_FOOD_FACTS_ENABLED=false` in
-`apps/backend/.env` to seed without it — useful offline, or when re-seeding repeatedly.
+Fallback lookups happen during `pnpm seed:catalog`, batched a hundred barcodes to a request, and a
+product that already has a photo is not looked up again. A product making do with a borrowed photo
+picks up the grocer's own the next time the catalog syncs. Set `OPEN_FOOD_FACTS_ENABLED=false` in
+`apps/backend/.env` to seed without the fallback — useful offline, or when re-seeding repeatedly.
+The grocer's own pictures still come through.
 
 ## Watching stock move
 

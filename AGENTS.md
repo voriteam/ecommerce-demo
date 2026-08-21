@@ -190,6 +190,10 @@ Rules that are load-bearing rather than stylistic, each with the failure it prev
   grocer's copy may have been taken at the till, corrected by staff, or be the shopper's real name
   rather than whoever's card paid. `VORI_UPDATE_SHOPPER_FROM_CHECKOUT=true` opts into treating
   the form as the current truth. Neither mode clears a field the form left empty.
+- **The grocer's own product photography wins.** It arrives nested in the store product, costs no
+  extra request, and is a picture of the thing actually on their shelf. Open Food Facts fills gaps
+  only, and the two sources are never mixed on one product. `OPEN_FOOD_FACTS_ENABLED` toggles the
+  fallback, not photography as a whole.
 - **All money is integer cents until the moment it is formatted.** Vori re-adds every line and
   rejects a transaction that does not reconcile, so one float turns into a rejected sale much later.
 - **Shipping is free on purpose.** A shipping charge would make the amount charged disagree with the

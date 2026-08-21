@@ -23,6 +23,7 @@ const base: VoriStoreProduct = {
   ebt_enabled: true,
   ecommerce_enabled: true,
   food_modifier_categories: [],
+  images: [],
   inventory: {
     current: "24",
     last_changed_at: "2026-08-18T21:40:00.000Z",
@@ -137,6 +138,67 @@ export const unsellableProducts: VoriStoreProduct[] = [
   { ...base, id: "900103", manual_item: true, name: "Manual Grocery" },
   { ...base, id: "900104", name: "Unpriced Item", retail_price: null },
 ]
+
+/**
+ * Three shots from the grocer, with the primary deliberately not first.
+ *
+ * A store uploads pictures in whatever order it took them, so the flagged
+ * lead being second is the ordinary case rather than the awkward one.
+ */
+export const photographedProduct: VoriStoreProduct = {
+  ...base,
+  id: "900201",
+  images: [
+    {
+      id: "spi_a",
+      is_primary: false,
+      thumbnail_url: "https://images.vori.com/a_thumb.webp",
+      url: "https://images.vori.com/a.webp",
+    },
+    {
+      id: "spi_b",
+      is_primary: true,
+      thumbnail_url: "https://images.vori.com/b_thumb.webp",
+      url: "https://images.vori.com/b.webp",
+    },
+    {
+      id: "spi_c",
+      is_primary: false,
+      thumbnail_url: null,
+      url: "https://images.vori.com/c.webp",
+    },
+  ],
+  name: "Clover Whole Milk, Half Gallon",
+}
+
+/** One shot with no crop rendered yet, so the full-size URL has to stand in. */
+export const thumblessPhotoProduct: VoriStoreProduct = {
+  ...base,
+  id: "900202",
+  images: [
+    { id: "spi_d", is_primary: true, thumbnail_url: null, url: "https://images.vori.com/d.webp" },
+  ],
+}
+
+/** Nothing flagged primary - the grocer never chose, so API order stands. */
+export const unflaggedPhotosProduct: VoriStoreProduct = {
+  ...base,
+  id: "900203",
+  images: [
+    {
+      id: "spi_e",
+      is_primary: false,
+      thumbnail_url: "https://images.vori.com/e_thumb.webp",
+      url: "https://images.vori.com/e.webp",
+    },
+    {
+      id: "spi_f",
+      is_primary: false,
+      thumbnail_url: "https://images.vori.com/f_thumb.webp",
+      url: "https://images.vori.com/f.webp",
+    },
+  ],
+}
 
 export const catalogFixture: VoriStoreProduct[] = [
   eachPricedProduct,

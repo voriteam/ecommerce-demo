@@ -8,12 +8,12 @@ import {
 
 import { voriProductToMedusa, type VoriStoreProduct } from "../../../modules/vori/lib/mapping"
 import type { CategoryIdsByDepartment } from "./upsert-vori-categories"
-import type { ImagesByProduct } from "./fetch-product-images"
+import type { PhotographyByProduct } from "./fetch-product-images"
 import type { StoreContext } from "./resolve-store-context"
 
 export type UpsertProductsInput = {
   categoryIds: CategoryIdsByDepartment
-  images: ImagesByProduct
+  photography: PhotographyByProduct
   products: VoriStoreProduct[]
   store: StoreContext
 }
@@ -56,11 +56,11 @@ export const upsertVoriProductsStep = createStep(
     const query = container.resolve(ContainerRegistrationKeys.QUERY)
     const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
 
-    const { categoryIds, images, products, store } = input
+    const { categoryIds, photography, products, store } = input
 
     const { data: existing } = await query.graph({
       entity: "product",
-      fields: ["id", "external_id", "variants.id"],
+      fields: ["id", "external_id", "images.url", "thumbnail", "variants.id"],
       filters: { external_id: products.map((p) => p.id) },
     })
 
@@ -71,7 +71,7 @@ export const upsertVoriProductsStep = createStep(
     const shaped = products.map((product) => ({
       medusa: voriProductToMedusa(product, {
         categoryIds: [categoryIds[product.department_id ?? ""]].filter(Boolean) as string[],
-        imageUrl: images[product.id],
+        photography: photography[product.id],
         salesChannelIds: [store.salesChannelId],
         shippingProfileId: store.shippingProfileId,
       }),
@@ -90,19 +90,49 @@ export const upsertVoriProductsStep = createStep(
       )
     }
 
+    /**
+     * Whether a refresh would leave the gallery exactly as it already is.
+     *
+     * Medusa replaces the whole image collection on update, so writing an
+     * unchanged gallery deletes and re-inserts every row. The catalog job runs
+     * hourly, and most products keep the same photography for months.
+     *
+     * URLs are compared as a set rather than in order: the read does not
+     * promise rank ordering, so an order-only change can go unwritten. Losing
+     * that is worth thousands of untouched rows an hour.
+     */
+    const photographyUnchanged = (
+      medusa: (typeof shaped)[number]["medusa"],
+      record: { images?: { url?: string }[]; thumbnail?: null | string },
+    ): boolean => {
+      if (medusa.thumbnail !== record.thumbnail) return false
+
+      const wanted = new Set(medusa.images?.map((image) => image.url) ?? [])
+      const held = new Set((record.images ?? []).map((image) => image.url))
+
+      return wanted.size === held.size && [...wanted].every((url) => held.has(url))
+    }
+
     // Everything the product itself needs, in one call per batch.
-    const productUpdates = toUpdate.map(({ medusa, vori }) => ({
-      id: existingByExternalId.get(vori.id)!.id,
-      category_ids: medusa.category_ids,
-      description: medusa.description,
-      handle: medusa.handle,
-      metadata: medusa.metadata,
-      status: medusa.status,
-      title: medusa.title,
-      // Only when one was found, so a product that already has photography
-      // does not have it cleared by a run that turned nothing up.
-      ...(medusa.thumbnail ? { images: medusa.images, thumbnail: medusa.thumbnail } : {}),
-    }))
+    const productUpdates = toUpdate.map(({ medusa, vori }) => {
+      const record = existingByExternalId.get(vori.id)!
+
+      return {
+        id: record.id,
+        category_ids: medusa.category_ids,
+        description: medusa.description,
+        handle: medusa.handle,
+        metadata: medusa.metadata,
+        status: medusa.status,
+        title: medusa.title,
+        // Only when one was found, so a product that already has photography
+        // does not have it cleared by a run that turned nothing up - and only
+        // when it actually differs, so an unchanged gallery is left alone.
+        ...(medusa.thumbnail && !photographyUnchanged(medusa, record)
+          ? { images: medusa.images, thumbnail: medusa.thumbnail }
+          : {}),
+      }
+    })
 
     for (const batch of chunk(productUpdates, CHUNK)) {
       await updateProductsWorkflow(container).run({ input: { products: batch } })
