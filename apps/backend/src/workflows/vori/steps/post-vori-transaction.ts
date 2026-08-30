@@ -11,6 +11,12 @@ export type RecordStatus = "conflict" | "failed" | "recorded" | "skipped"
 
 export type RecordResult = {
   detail?: string
+  /**
+   * IDs of the gift cards this sale issued, when it recorded any. Empty or
+   * absent when the order sold no gift cards, or when Vori has not yet linked
+   * them (a sale recorded while its worker was unreachable is backfilled later).
+   */
+  giftCardIds?: string[]
   status: RecordStatus
   transactionId: string
 }
@@ -59,10 +65,18 @@ export const postVoriTransactionStep = createStep(
     }
 
     try {
-      await vori.createTransaction(input.request)
+      const transaction = await vori.createTransaction(input.request)
+
+      // The IDs of the cards Vori issued for this sale. A sale recorded while
+      // its worker was unreachable comes back unlinked and is backfilled later,
+      // so a null here is expected rather than an error.
+      const giftCardIds = (transaction.gift_card_sales ?? [])
+        .map((sale) => sale.gift_card_id)
+        .filter((id): id is string => typeof id === "string")
 
       logger.info(`vori: recorded transaction ${input.transactionId}`)
       return new StepResponse<RecordResult>({
+        giftCardIds,
         status: "recorded",
         transactionId: input.transactionId,
       })

@@ -2,6 +2,7 @@
 
 import { addToCart } from "@lib/data/cart"
 import { useIntersection } from "@lib/hooks/use-in-view"
+import { generateGiftCardBarcode, isGiftCardVariant } from "@lib/util/gift-card"
 import { HttpTypes } from "@medusajs/types"
 import { Button } from "@modules/common/components/ui"
 import Divider from "@modules/common/components/divider"
@@ -127,10 +128,18 @@ export default function ProductActions({
 
     setIsAdding(true)
 
+    // A gift card gets its barcode the moment it enters the cart, generated here
+    // rather than by Vori. The recipient's phone is collected later, at
+    // checkout, and joins it on the line's metadata.
+    const metadata = isGiftCardVariant(selectedVariant)
+      ? { gift_card_barcode: generateGiftCardBarcode() }
+      : undefined
+
     await addToCart({
       variantId: selectedVariant.id,
       quantity: 1,
       countryCode,
+      metadata,
     })
 
     setIsAdding(false)

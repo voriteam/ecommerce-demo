@@ -6,6 +6,7 @@ import type { RecordStatus } from "./post-vori-transaction"
 
 export type SaveOrderStateInput = {
   detail?: null | string
+  giftCardIds?: null | string[]
   orderId: string
   request?: CreateTransactionRequest
   status: RecordStatus | "pending"
@@ -44,6 +45,11 @@ export const saveVoriOrderStateStep = createStep(
           vori_sync_status: input.status,
           vori_transaction_id: input.transactionId,
           ...(input.request ? { vori_request: input.request } : {}),
+          // The cards this sale issued, so the confirmation can show they were
+          // really created. Only written when the send returned some.
+          ...(input.giftCardIds && input.giftCardIds.length > 0
+            ? { vori_gift_card_ids: input.giftCardIds }
+            : {}),
         },
       },
     ])

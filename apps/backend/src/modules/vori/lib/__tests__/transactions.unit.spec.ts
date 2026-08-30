@@ -1,8 +1,10 @@
 import {
+  buildGiftCardSale,
   buildLineItem,
   buildTransaction,
   toVoriCardBrand,
   TransactionBuildError,
+  type VoriGiftCardSale,
   type VoriOrderLine,
   type VoriOrderSnapshot,
 } from "../transactions"
@@ -35,8 +37,20 @@ const beer: VoriOrderLine = {
   unitPriceCents: 1249,
 }
 
-const order = (lines: VoriOrderLine[], paidCents: null | number): VoriOrderSnapshot => ({
+const giftCard: VoriGiftCardSale = {
+  amountCents: 2500,
+  barcode: "VGC-000000000001",
+  recipientPhone: "+14155550123",
+  title: "Vori Gift Card - $25",
+}
+
+const order = (
+  lines: VoriOrderLine[],
+  paidCents: null | number,
+  giftCards: VoriGiftCardSale[] = [],
+): VoriOrderSnapshot => ({
   createdAt: "2026-08-19T05:00:00.000Z",
+  giftCards,
   id: "order_01ABC",
   lines,
   paidCents,
@@ -162,7 +176,7 @@ describe("a transaction", () => {
     // The classic off-by-tax: charging 24.54 and booking 25.57 would leave the
     // shopper's statement disagreeing with the grocer's books.
     expect(() => record(order([milk, bananas, beer], 2454))).toThrow(
-      /was charged 24.54 but its line items total 25.57/,
+      /was charged 24.54 but its recorded items total 25.57/,
     )
   })
 
@@ -178,7 +192,7 @@ describe("a transaction", () => {
     // The worst outcome here is a silent mismatch between the shopper's card
     // statement and the grocer's books, so this fails loudly instead.
     expect(() => record(order([milk, bananas], 1300))).toThrow(
-      /was charged 13.00 but its line items total 12.05/,
+      /was charged 13.00 but its recorded items total 12.05/,
     )
   })
 
@@ -242,5 +256,93 @@ describe("loyalty", () => {
     // No shopper is not an error. Sending a placeholder or somebody else's
     // account would put points on the wrong loyalty record.
     expect(record(order([milk], 998)).shopper_id).toBeUndefined()
+  })
+})
+
+describe("a gift card sale", () => {
+  it("carries the amount, barcode, and recipient", () => {
+    expect(buildGiftCardSale(giftCard)).toEqual({
+      amount: "25.00",
+      physical_barcode: "VGC-000000000001",
+      recipient_phone_number: "+14155550123",
+    })
+  })
+
+  it("normalizes the recipient phone to E.164", () => {
+    // The buyer types a number however they like; a loyalty account is keyed on
+    // one canonical form.
+    expect(buildGiftCardSale({ ...giftCard, recipientPhone: "(415) 555-0123" })).toMatchObject({
+      recipient_phone_number: "+14155550123",
+    })
+  })
+
+  it("sends only the barcode when no recipient was named", () => {
+    const sale = buildGiftCardSale({ ...giftCard, recipientPhone: null })
+
+    expect(sale.physical_barcode).toBe("VGC-000000000001")
+    expect(sale).not.toHaveProperty("recipient_phone_number")
+  })
+
+  it("drops a phone that is not a real number rather than sending it", () => {
+    const sale = buildGiftCardSale({ ...giftCard, recipientPhone: "555" })
+
+    expect(sale).not.toHaveProperty("recipient_phone_number")
+    expect(sale.physical_barcode).toBe("VGC-000000000001")
+  })
+
+  it("refuses a card with neither a barcode nor a valid recipient", () => {
+    expect(() =>
+      buildGiftCardSale({ ...giftCard, barcode: null, recipientPhone: null }),
+    ).toThrow(TransactionBuildError)
+    expect(() =>
+      buildGiftCardSale({ ...giftCard, barcode: "  ", recipientPhone: "555" }),
+    ).toThrow(TransactionBuildError)
+  })
+
+  it("refuses an amount that is not a positive whole number of cents", () => {
+    expect(() => buildGiftCardSale({ ...giftCard, amountCents: 0 })).toThrow(TransactionBuildError)
+    expect(() => buildGiftCardSale({ ...giftCard, amountCents: -100 })).toThrow(TransactionBuildError)
+    expect(() => buildGiftCardSale({ ...giftCard, amountCents: 25.5 })).toThrow(TransactionBuildError)
+  })
+})
+
+describe("a transaction with gift cards", () => {
+  it("records a gift-card-only order with no line items", () => {
+    const transaction = record(order([], 2500, [giftCard]))
+
+    expect(transaction.line_items).toEqual([])
+    expect(transaction.gift_card_sales).toEqual([
+      {
+        amount: "25.00",
+        physical_barcode: "VGC-000000000001",
+        recipient_phone_number: "+14155550123",
+      },
+    ])
+    // The card adds to the total but never to the tax total.
+    expect(transaction.total).toBe("25.00")
+    expect(transaction.tax_total).toBe("0.00")
+    expect(transaction.payments[0].amount).toBe("25.00")
+  })
+
+  it("adds the card amount to a mixed order's total but not its tax", () => {
+    // Milk 9.98 + beer 13.52 (of which 1.03 is tax) + a $25 card = 48.50.
+    const transaction = record(order([milk, beer], 4850, [giftCard]))
+
+    expect(transaction.line_items).toHaveLength(2)
+    expect(transaction.gift_card_sales).toHaveLength(1)
+    expect(transaction.total).toBe("48.50")
+    expect(transaction.tax_total).toBe("1.03")
+    expect(transaction.payments[0].amount).toBe("48.50")
+  })
+
+  it("refuses when the total leaves the card amount out", () => {
+    // Charging only the line total while booking a card would leave the books
+    // short by the card's value.
+    expect(() => record(order([milk], 998, [giftCard]))).toThrow(TransactionBuildError)
+  })
+
+  it("leaves gift_card_sales off an ordinary sale entirely", () => {
+    // An order with no cards must be byte-for-byte the request it was before.
+    expect(record(order([milk], 998))).not.toHaveProperty("gift_card_sales")
   })
 })

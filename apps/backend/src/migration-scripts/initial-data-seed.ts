@@ -6,6 +6,7 @@ import {
 } from "@medusajs/framework/utils"
 import {
   createApiKeysWorkflow,
+  createProductsWorkflow,
   createRegionsWorkflow,
   createSalesChannelsWorkflow,
   createShippingOptionsWorkflow,
@@ -21,6 +22,13 @@ import {
 const STORE_NAME = "Vori Market"
 const REGION_NAME = "United States"
 const PICKUP_OPTION_NAME = "Store pickup"
+
+const GIFT_CARD_HANDLE = "vori-gift-card"
+const GIFT_CARD_OPTION = "Denomination"
+// Dollar face values sold. A gift card is not a Vori product and has no store
+// product behind it, so unlike the catalog its price is set here rather than
+// mirrored from Vori.
+const GIFT_CARD_DENOMINATIONS = [25, 50, 100]
 
 /**
  * Bootstraps an empty US grocery store.
@@ -266,6 +274,50 @@ export default async function initial_data_seed({ container }: { container: Medu
   await linkSalesChannelsToStockLocationWorkflow(container).run({
     input: { id: stockLocation!.id, add: [salesChannel!.id] },
   })
+
+  // The only product this seed ships: a gift card is not a Vori product, so
+  // unlike the catalog there is nothing to mirror and it is created here. The
+  // `vori_gift_card` variant flag is what the order write reads to record it as
+  // a gift card sale rather than a line item.
+  logger.info("Seeding the gift card product...")
+  const existingGiftCard = await first<{ handle: string; id: string }>(
+    "product",
+    ["id", "handle"],
+    (row) => row.handle === GIFT_CARD_HANDLE,
+  )
+  if (!existingGiftCard) {
+    await createProductsWorkflow(container).run({
+      input: {
+        products: [
+          {
+            title: "Vori Gift Card",
+            handle: GIFT_CARD_HANDLE,
+            status: "published",
+            description:
+              "A Vori Market gift card. Choose an amount, and the recipient gets a card they can spend in store.",
+            options: [
+              {
+                title: GIFT_CARD_OPTION,
+                values: GIFT_CARD_DENOMINATIONS.map((amount) => `$${amount}`),
+              },
+            ],
+            shipping_profile_id: shippingProfile.id,
+            sales_channels: [{ id: salesChannel!.id }],
+            variants: GIFT_CARD_DENOMINATIONS.map((amount) => ({
+              title: `$${amount}`,
+              sku: `VORI-GIFT-CARD-${amount}`,
+              // A gift card is issued on demand, not drawn from a shelf, so it
+              // never runs out of stock.
+              manage_inventory: false,
+              options: { [GIFT_CARD_OPTION]: `$${amount}` },
+              prices: [{ amount, currency_code: "usd" }],
+              metadata: { vori_gift_card: true },
+            })),
+          },
+        ],
+      },
+    })
+  }
 
   logger.info(`Store ready. Storefront publishable key: ${apiKey.token}`)
   logger.info("Run `pnpm seed:catalog` to fill the shelves from a Vori store.")

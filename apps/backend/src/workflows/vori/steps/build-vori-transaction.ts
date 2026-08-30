@@ -8,6 +8,7 @@ import { readCardPayment, type CardPayment } from "../../../modules/vori/lib/pay
 import {
   buildTransaction,
   type CreateTransactionRequest,
+  type VoriGiftCardSale,
   type VoriOrderLine,
 } from "../../../modules/vori/lib/transactions"
 import type VoriModuleService from "../../../modules/vori/service"
@@ -60,6 +61,7 @@ export const buildVoriTransactionStep = createStep(
         "total",
         "tax_total",
         "items.*",
+        "items.metadata",
         "items.tax_lines.*",
         "items.variant.id",
         "items.variant.metadata",
@@ -84,8 +86,17 @@ export const buildVoriTransactionStep = createStep(
 
     const card = cardPaymentFor(order)
 
-    const lines: VoriOrderLine[] = ((order.items ?? []) as Record<string, any>[]).map((item) => {
+    // A gift card is not a product and has no store product behind it. It is
+    // told apart by a positive flag on its variant, set when the demo seeds the
+    // gift card product, rather than by the mere absence of a Vori store product
+    // ID - a product that failed to seed correctly should fail loudly as a
+    // missing line item, not be silently recorded as a gift card.
+    const lines: VoriOrderLine[] = []
+    const giftCards: VoriGiftCardSale[] = []
+
+    for (const item of (order.items ?? []) as Record<string, any>[]) {
       const variantMetadata = (item.variant?.metadata ?? {}) as Record<string, unknown>
+      const itemMetadata = (item.metadata ?? {}) as Record<string, unknown>
       const title = String(item.title ?? item.variant?.id ?? "unknown item")
 
       // A tax-inclusive price would put tax inside the subtotal, and every
@@ -98,7 +109,33 @@ export const buildVoriTransactionStep = createStep(
         )
       }
 
-      return {
+      if (variantMetadata.vori_gift_card === true) {
+        // Each gift card is a single physical card with its own barcode, so the
+        // storefront sells it one to a line. A quantity above one would mean
+        // several cards behind one barcode, which is not a card we can issue.
+        if (Number(item.quantity) !== 1) {
+          throw new MedusaError(
+            MedusaError.Types.NOT_ALLOWED,
+            `Gift card "${title}" on order ${order.id} has quantity ${item.quantity}; each gift card must be sold one to a line.`,
+          )
+        }
+
+        giftCards.push({
+          amountCents: decimalToCents(String(item.unit_price)) ?? 0,
+          barcode:
+            typeof itemMetadata.gift_card_barcode === "string"
+              ? itemMetadata.gift_card_barcode
+              : null,
+          recipientPhone:
+            typeof itemMetadata.gift_card_recipient_phone === "string"
+              ? itemMetadata.gift_card_recipient_phone
+              : null,
+          title,
+        })
+        continue
+      }
+
+      lines.push({
         quantity: Number(item.quantity),
         soldByWeight: variantMetadata.vori_sold_by_weight === true,
         // Medusa keeps tax unrounded, so this is rounded here - per line,
@@ -112,8 +149,8 @@ export const buildVoriTransactionStep = createStep(
             : null,
         title,
         unitPriceCents: decimalToCents(String(item.unit_price)),
-      }
-    })
+      })
+    }
 
     // The number a shopper gave at checkout is where loyalty starts. The
     // customer record is the fallback for a returning shopper who did not
@@ -149,6 +186,7 @@ export const buildVoriTransactionStep = createStep(
       cardLast4: card.last4,
       order: {
         createdAt: new Date(order.created_at).toISOString(),
+        giftCards,
         id: order.id,
         lines,
         paidCents: card.paidCents,

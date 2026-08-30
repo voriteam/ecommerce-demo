@@ -2,6 +2,7 @@
 
 import { Table, Text, clx } from "@modules/common/components/ui"
 import { updateLineItem } from "@lib/data/cart"
+import { isGiftCardLineItem } from "@lib/util/gift-card"
 import { HttpTypes } from "@medusajs/types"
 import CartItemSelect from "@modules/cart/components/cart-item-select"
 import ErrorMessage from "@modules/checkout/components/error-message"
@@ -44,6 +45,10 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
   const maxQtyFromInventory = 10
   const maxQuantity = item.variant?.manage_inventory ? 10 : maxQtyFromInventory
 
+  // Each gift card is one physical card with its own barcode, so a line is
+  // always a single card - the quantity is fixed rather than chosen.
+  const isGiftCard = isGiftCardLineItem(item)
+
   return (
     <Table.Row className="w-full" data-testid="product-row">
       <Table.Cell className="!pl-0 p-4 w-24">
@@ -76,28 +81,36 @@ const Item = ({ item, type = "full", currencyCode }: ItemProps) => {
         <Table.Cell>
           <div className="flex gap-2 items-center w-28">
             <DeleteButton id={item.id} data-testid="product-delete-button" />
-            <CartItemSelect
-              value={item.quantity}
-              onChange={(value) => changeQuantity(parseInt(value.target.value))}
-              className="w-14 h-10 p-4"
-              data-testid="product-select-button"
-            >
-              {/* TODO: Update this with the v2 way of managing inventory */}
-              {Array.from(
-                {
-                  length: Math.min(maxQuantity, 10),
-                },
-                (_, i) => (
-                  <option value={i + 1} key={i}>
-                    {i + 1}
-                  </option>
-                )
-              )}
+            {isGiftCard ? (
+              <Text className="text-ui-fg-subtle" data-testid="product-quantity">
+                Qty 1
+              </Text>
+            ) : (
+              <CartItemSelect
+                value={item.quantity}
+                onChange={(value) =>
+                  changeQuantity(parseInt(value.target.value))
+                }
+                className="w-14 h-10 p-4"
+                data-testid="product-select-button"
+              >
+                {/* TODO: Update this with the v2 way of managing inventory */}
+                {Array.from(
+                  {
+                    length: Math.min(maxQuantity, 10),
+                  },
+                  (_, i) => (
+                    <option value={i + 1} key={i}>
+                      {i + 1}
+                    </option>
+                  )
+                )}
 
-              <option value={1} key={1}>
-                1
-              </option>
-            </CartItemSelect>
+                <option value={1} key={1}>
+                  1
+                </option>
+              </CartItemSelect>
+            )}
             {updating && <Spinner />}
           </div>
           <ErrorMessage error={error} data-testid="product-error-message" />

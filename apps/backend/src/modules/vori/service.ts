@@ -205,12 +205,17 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
     )
   }
 
-  /** Records a transaction against the store. Throws VoriApiError on refusal. */
-  async createTransaction(request: CreateTransactionRequest): Promise<unknown> {
+  /**
+   * Records a transaction against the store. Throws VoriApiError on refusal.
+   *
+   * Returns the recorded transaction so a caller can read what Vori assigned,
+   * such as the ID of each gift card the sale issued.
+   */
+  async createTransaction(request: CreateTransactionRequest): Promise<VoriTransaction> {
     return unwrap(await this.client().POST("/v1/transactions", { body: request }), {
       method: "POST",
       path: "/v1/transactions",
-    })
+    }) as VoriTransaction
   }
 
   /**

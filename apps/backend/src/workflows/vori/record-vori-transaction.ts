@@ -35,6 +35,7 @@ export const recordVoriTransactionWorkflow = createWorkflow(
     saveVoriOrderStateStep(
       transform({ input, result }, (data) => ({
         detail: data.result.detail ?? null,
+        giftCardIds: data.result.giftCardIds ?? null,
         orderId: data.input.orderId,
         status: data.result.status,
         transactionId: data.result.transactionId,
