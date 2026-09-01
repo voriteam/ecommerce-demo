@@ -1,6 +1,8 @@
 import { HttpTypes } from "@medusajs/types"
 import { Table, Text } from "@modules/common/components/ui"
 
+import { isGiftCardLineItem } from "@lib/util/gift-card"
+import Barcode from "@modules/common/components/barcode"
 import LineItemOptions from "@modules/common/components/line-item-options"
 import LineItemPrice from "@modules/common/components/line-item-price"
 import LineItemUnitPrice from "@modules/common/components/line-item-unit-price"
@@ -12,6 +14,17 @@ type ItemProps = {
 }
 
 const Item = ({ item, currencyCode }: ItemProps) => {
+  const metadata = (item.metadata ?? {}) as Record<string, unknown>
+  const isGiftCard = isGiftCardLineItem(item)
+  const barcode =
+    typeof metadata.gift_card_barcode === "string"
+      ? metadata.gift_card_barcode
+      : null
+  const recipient =
+    typeof metadata.gift_card_recipient_phone === "string"
+      ? metadata.gift_card_recipient_phone
+      : null
+
   return (
     <Table.Row className="w-full" data-testid="product-row">
       <Table.Cell className="!pl-0 p-4 w-24">
@@ -28,6 +41,19 @@ const Item = ({ item, currencyCode }: ItemProps) => {
           {item.product_title}
         </Text>
         <LineItemOptions variant={item.variant} data-testid="product-variant" />
+
+        {isGiftCard && (
+          <div className="mt-2 flex flex-col gap-y-1" data-testid="gift-card-details">
+            {recipient && (
+              <Text className="txt-small text-ui-fg-subtle">
+                For {recipient}
+              </Text>
+            )}
+            {barcode && (
+              <Barcode value={barcode} className="max-w-[200px] h-16" />
+            )}
+          </div>
+        )}
       </Table.Cell>
 
       <Table.Cell className="!pr-0">

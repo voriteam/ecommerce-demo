@@ -118,10 +118,12 @@ export async function addToCart({
   variantId,
   quantity,
   countryCode,
+  metadata,
 }: {
   variantId: string
   quantity: number
   countryCode: string
+  metadata?: Record<string, unknown>
 }) {
   if (!variantId) {
     throw new Error("Missing variant ID when adding to cart")
@@ -137,12 +139,28 @@ export async function addToCart({
     ...(await getAuthHeaders()),
   }
 
+  // A gift card is one physical card with one barcode, so a variant already in
+  // the cart is not added again - Medusa would merge it into a second unit
+  // behind the same barcode, which is not a card that can be issued.
+  if (metadata?.gift_card_barcode) {
+    const existing = await retrieveCart()
+    const alreadyAdded = (existing?.items ?? []).some(
+      (item) => item.variant_id === variantId
+    )
+    if (alreadyAdded) {
+      const cartCacheTag = await getCacheTag("carts")
+      revalidateTag(cartCacheTag)
+      return
+    }
+  }
+
   await sdk.store.cart
     .createLineItem(
       cart.id,
       {
         variant_id: variantId,
         quantity,
+        ...(metadata ? { metadata } : {}),
       },
       {},
       headers
@@ -384,6 +402,66 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
   redirect(
     `/${formData.get("shipping_address.country_code")}/checkout?step=delivery`
   )
+}
+
+/**
+ * Records the recipient a shopper named for each gift card in the cart.
+ *
+ * The phone rides on the line item's metadata next to the barcode the client
+ * generated when the card was added, and the order write reads both when it maps
+ * the card to a gift card sale. Existing metadata is merged so the barcode
+ * survives the update.
+ */
+export async function setGiftCardRecipients(
+  currentState: unknown,
+  formData: FormData
+) {
+  try {
+    const cartId = await getCartId()
+    if (!cartId) {
+      throw new Error("No existing cart found when setting gift card recipients")
+    }
+
+    const cart = await retrieveCart()
+    if (!cart) {
+      throw new Error("No existing cart found when setting gift card recipients")
+    }
+
+    const headers = {
+      ...(await getAuthHeaders()),
+    }
+
+    const giftCardItems = (cart.items ?? []).filter(
+      (item) => item.variant?.metadata?.vori_gift_card === true
+    )
+
+    for (const item of giftCardItems) {
+      const recipient = formData.get(`gift_card_recipient.${item.id}`)
+      await sdk.store.cart.updateLineItem(
+        cartId,
+        item.id,
+        {
+          quantity: item.quantity,
+          metadata: {
+            ...(item.metadata ?? {}),
+            gift_card_recipient_phone:
+              typeof recipient === "string" && recipient.trim()
+                ? recipient.trim()
+                : null,
+          },
+        },
+        {},
+        headers
+      )
+    }
+
+    const cartCacheTag = await getCacheTag("carts")
+    revalidateTag(cartCacheTag)
+  } catch (e: any) {
+    return e.message
+  }
+
+  return "success"
 }
 
 /**
