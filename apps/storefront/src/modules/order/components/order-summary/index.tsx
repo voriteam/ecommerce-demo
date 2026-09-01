@@ -6,6 +6,10 @@ type OrderSummaryProps = {
 }
 
 const OrderSummary = ({ order }: OrderSummaryProps) => {
+  const creditLineTotal = Number(
+    (order as unknown as Record<string, unknown>).credit_line_total ?? 0
+  )
+
   const getAmount = (amount?: number | null) => {
     if (!amount) {
       return
@@ -32,10 +36,10 @@ const OrderSummary = ({ order }: OrderSummaryProps) => {
               <span>- {getAmount(order.discount_total)}</span>
             </div>
           )}
-          {order.gift_card_total > 0 && (
+          {creditLineTotal > 0 && (
             <div className="flex items-center justify-between">
-              <span>Discount</span>
-              <span>- {getAmount(order.gift_card_total)}</span>
+              <span>Gift card</span>
+              <span>- {getAmount(creditLineTotal)}</span>
             </div>
           )}
           <div className="flex items-center justify-between">

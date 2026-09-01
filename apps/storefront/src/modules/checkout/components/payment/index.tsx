@@ -1,4 +1,5 @@
 "use client"
+import { coveredByGiftCards } from "@lib/util/gift-card-payment"
 import { RadioGroup } from "@headlessui/react"
 import { isStripeLike, paymentInfoMap } from "@lib/constants"
 import { initiatePaymentSession } from "@lib/data/cart"
@@ -54,9 +55,7 @@ const Payment = ({
     }
   }
 
-  const paidByGiftcard = !!(
-    (cart as unknown as Record<string, unknown>)?.gift_cards && ((cart as unknown as Record<string, unknown>)?.gift_cards as unknown[])?.length > 0 && cart?.total === 0
-  )
+  const paidByGiftcard = coveredByGiftCards(cart)
 
   const paymentReady =
     (activeSession && (cart?.shipping_methods?.length ?? 0) !== 0) || paidByGiftcard

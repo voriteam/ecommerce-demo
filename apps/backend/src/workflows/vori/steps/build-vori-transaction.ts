@@ -3,35 +3,50 @@ import { createStep, StepResponse } from "@medusajs/framework/workflows-sdk"
 import { v7 as uuidv7 } from "uuid"
 
 import { VORI_MODULE } from "../../../modules/vori"
-import { decimalToCents, decimalToCentsRounded } from "../../../modules/vori/lib/money"
+import { decimalToCents, decimalToCentsRounded, sumCents } from "../../../modules/vori/lib/money"
 import { readCardPayment, type CardPayment } from "../../../modules/vori/lib/payments"
 import {
   buildTransaction,
   type CreateTransactionRequest,
+  type VoriGiftCardPayment,
   type VoriGiftCardSale,
   type VoriOrderLine,
 } from "../../../modules/vori/lib/transactions"
+import { giftCardPaymentsFrom } from "../gift-card-credit-lines"
 import type VoriModuleService from "../../../modules/vori/service"
 
 export type BuiltTransaction = {
+  /** The cards to take money off, and how much off each. */
+  giftCardPayments: VoriGiftCardPayment[]
   request: CreateTransactionRequest
   transactionId: string
 }
 
-const cardPaymentFor = (order: Record<string, any>): CardPayment => {
+/**
+ * What the shopper's card was charged, or null when no card was.
+ *
+ * An order gift cards covered outright carries no payment: cart completion
+ * authorises nothing once credit lines take the total to zero. That is a paid
+ * order, not a broken one, so the caller decides whether null is an error.
+ *
+ * The amount sums every payment while the brand and reference come from the
+ * first, because those describe a card and an order only ever carries one.
+ */
+const cardPaymentFor = (order: Record<string, any>): CardPayment | null => {
   const payments = (order.payment_collections ?? []).flatMap(
     (collection: Record<string, any>) => collection.payments ?? [],
   )
-  const payment = payments[0]
 
-  if (!payment) {
-    throw new MedusaError(
-      MedusaError.Types.NOT_FOUND,
-      `Order ${order.id} has no payment to record against.`,
-    )
+  if (payments.length === 0) return null
+
+  return {
+    ...readCardPayment(payments[0]),
+    paidCents: sumCents(
+      payments.map(
+        (payment: Record<string, any>) => decimalToCentsRounded(String(payment.amount)) ?? 0,
+      ),
+    ),
   }
-
-  return readCardPayment(payment)
 }
 
 /**
@@ -66,6 +81,7 @@ export const buildVoriTransactionStep = createStep(
         "items.variant.id",
         "items.variant.metadata",
         "payment_collections.payments.*",
+        "credit_lines.*",
         "customer.phone",
         "customer.email",
         "customer.first_name",
@@ -181,22 +197,32 @@ export const buildVoriTransactionStep = createStep(
       }
     }
 
+    const giftCardPayments = giftCardPaymentsFrom(order.credit_lines)
+
+    if (!card && giftCardPayments.length === 0) {
+      throw new MedusaError(
+        MedusaError.Types.NOT_FOUND,
+        `Order ${order.id} has no payment to record against.`,
+      )
+    }
+
     const request = buildTransaction({
-      cardBrand: card.brand,
-      cardLast4: card.last4,
+      cardBrand: card?.brand,
+      cardLast4: card?.last4,
       order: {
         createdAt: new Date(order.created_at).toISOString(),
+        giftCardPayments,
         giftCards,
         id: order.id,
         lines,
-        paidCents: card.paidCents,
+        paidCents: card ? card.paidCents : 0,
       },
-      paymentReference: card.reference,
+      paymentReference: card?.reference,
       shopperId,
       storeId: vori.options.storeId!,
       transactionId,
     })
 
-    return new StepResponse<BuiltTransaction>({ request, transactionId })
+    return new StepResponse<BuiltTransaction>({ giftCardPayments, request, transactionId })
   },
 )

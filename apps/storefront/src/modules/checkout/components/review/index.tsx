@@ -1,5 +1,6 @@
 "use client"
 
+import { coveredByGiftCards } from "@lib/util/gift-card-payment"
 import { Heading, Text, clx } from "@modules/common/components/ui"
 
 import PaymentButton from "../payment-button"
@@ -11,12 +12,7 @@ const Review = ({ cart }: { cart: HttpTypes.StoreCart }) => {
 
   const isOpen = searchParams.get("step") === "review"
 
-  const paidByGiftcard = !!(
-    (cart as unknown as Record<string, unknown>)?.gift_cards &&
-    ((cart as unknown as Record<string, unknown>)?.gift_cards as unknown[])
-      ?.length > 0 &&
-    cart?.total === 0
-  )
+  const paidByGiftcard = coveredByGiftCards(cart)
 
   const previousStepsCompleted =
     cart.shipping_address &&

@@ -69,7 +69,11 @@ export interface paths {
          */
         get: operations["listEmployees"];
         put?: never;
-        post?: never;
+        /**
+         * Create an employee
+         * @description Creates an employee who can sign in at the point of sale and be credited for the orders they ring up.
+         */
+        post: operations["createEmployee"];
         delete?: never;
         options?: never;
         head?: never;
@@ -90,6 +94,198 @@ export interface paths {
         get: operations["getEmployee"];
         put?: never;
         post?: never;
+        /**
+         * Deactivate an employee
+         * @description Deactivates an employee. The record is retained so past orders and reporting still resolve the employee they name, and the employee's PIN and barcode are cleared so another employee can take them. Employees can be reactivated by setting `deactivated_at` to `null` via the update operation.
+         */
+        delete: operations["deleteEmployee"];
+        options?: never;
+        head?: never;
+        /**
+         * Update an employee
+         * @description Updates an employee. Properties the request does not name are left unchanged, and passing `null` clears one. Supplying `roles` replaces every role the employee holds.
+         */
+        patch: operations["updateEmployee"];
+        trace?: never;
+    };
+    "/v1/gift-cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List gift cards
+         * @description Lists the gift cards across the whole banner, newest first. Filter with `status` to narrow to active or deactivated cards.
+         */
+        get: operations["listGiftCards"];
+        put?: never;
+        /**
+         * Create or fund a gift card
+         * @description Funds a shopper's gift card, creating one if the shopper has none yet, and adjusts its balance.
+         */
+        post: operations["createGiftCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/gift-cards/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a gift card
+         * @description Get a gift card
+         */
+        get: operations["getGiftCard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a gift card
+         * @description Update a gift card
+         */
+        patch: operations["updateGiftCard"];
+        trace?: never;
+    };
+    "/v1/gift-cards/{id}/deactivate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Deactivate a gift card
+         * @description Deactivates the gift card and every card merged into it. The call is idempotent: deactivating a card that is already deactivated returns a successful response.
+         */
+        post: operations["deactivateGiftCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/gift-cards/{id}/reissue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reissue a gift card
+         * @description Resends the original notification to the gift card owner. The card must be active, and nothing is sent when the card has no owner.
+         */
+        post: operations["reissueGiftCard"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/gift-cards/{id}/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List gift card transactions
+         * @description Lists the credits and debits on one gift card, most recently recorded first.
+         */
+        get: operations["getGiftCardTransactions"];
+        put?: never;
+        /**
+         * Create a gift card transaction
+         * @description Records a credit or debit against a specific gift card and moves its balance by the amount. Supply an idempotency key so a retry returns the transaction already recorded rather than moving the balance twice.
+         */
+        post: operations["createGiftCardTransaction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/house-accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List house accounts
+         * @description Lists the house accounts across the whole banner, newest first. Filter by account number to find the one a customer gave at checkout, and page through the results with the cursor parameters.
+         */
+        get: operations["listHouseAccount"];
+        put?: never;
+        /**
+         * Create a house account
+         * @description Opens a charge account a customer can buy against and settle later.
+         */
+        post: operations["createHouseAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/house-accounts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve a house account
+         * @description Retrieve a house account
+         */
+        get: operations["getHouseAccount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update a house account
+         * @description Updates the properties the request supplies.
+         */
+        patch: operations["updateHouseAccount"];
+        trace?: never;
+    };
+    "/v1/house-accounts/{id}/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List house account transactions
+         * @description Lists the charges and payments on one house account, most recently recorded first. A sale reaches the ledger from the register that rang it up, so read `effective_at` for when an entry actually happened — it can be earlier than the position implies.
+         */
+        get: operations["getHouseAccountTransactions"];
+        put?: never;
+        /**
+         * Create a house account transaction
+         * @description Records a charge or payment against a house account and moves its balance by the amount. Supply an idempotency key so a retry returns the transaction already recorded rather than moving the balance twice.
+         */
+        post: operations["createHouseAccountTransaction"];
         delete?: never;
         options?: never;
         head?: never;
@@ -585,18 +781,24 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {string} */
-        Action: "*" | "cancel" | "check_in" | "create" | "delete" | "read" | "record_events" | "refund" | "restart" | "update" | "void";
+        Action: "*" | "cancel" | "check_in" | "create" | "delete" | "read" | "read_credentials" | "record_events" | "refund" | "restart" | "update" | "void";
+        /** @enum {string} */
+        AssignableRoleName: "manager";
         /** @enum {string} */
         AuthenticationMethod: "barcode" | "pin";
         /** @description How an employee proves their identity at the point of sale. An active employee with no rule of their own authenticates with a PIN. */
         AuthenticationRule: {
-            /** @description The credentials the employee presents to sign in. Never empty. */
+            /** @description The credentials the employee presents to sign in. Never empty, and every method named must have its credential set on the employee, whichever operator the rule uses. */
             methods: components["schemas"]["AuthenticationMethod"][];
             /** @description How the methods combine: `and` requires every one of them, `or` requires any one of them. */
             operator: components["schemas"]["AuthenticationRuleOperator"];
         };
         /** @enum {string} */
         AuthenticationRuleOperator: "and" | "or";
+        BarcodeAlreadyAssignedError: {
+            /** @enum {string} */
+            error_code: "barcode_already_assigned";
+        };
         BarcodeIdentifier: {
             barcode: string;
             type: components["schemas"]["StoreVendorProductIdentifierType"];
@@ -704,9 +906,12 @@ export interface components {
             lbCost?: string | null;
             /** Format: uuid */
             mutationKey?: string;
+            notes?: string | null;
             packUPC?: string | null;
             parentProductID?: string | null;
             purchaseOrderUOMLock?: components["schemas"]["PurchaseOrderLineItemUnitOfMeasure"] | null;
+            /** @default AVAILABLE */
+            status: components["schemas"]["PersistableVendorProductStatus"];
             storeProductID?: string | null;
             storeVendorID: string;
             unitUPC?: string | null;
@@ -864,6 +1069,146 @@ export interface components {
             /** @description How `amount` is applied: as a fixed monetary reduction or a percentage reduction. */
             type: components["schemas"]["DiscountType"];
         };
+        /** @description Values for creating an employee. */
+        CreateEmployeeRequest: {
+            /**
+             * @description How the employee signs in at the point of sale, or null to sign in with a PIN. Every method the rule names must have its credential set on the employee.
+             * @default null
+             */
+            authentication_rule: components["schemas"]["AuthenticationRule"] | null;
+            /**
+             * @description Barcode on the badge the employee scans to sign in at the point of sale, or null for none. Unique within the banner. A deactivated employee cannot hold one unless the same request reactivates them.
+             * @default null
+             */
+            badge_barcode: string | null;
+            /**
+             * Format: email
+             * @description Employee's email address, or null for none. Unique within the banner.
+             * @default null
+             */
+            email_address: string | null;
+            /** @description Employee's first name. */
+            first_name: string;
+            /** @description Employee's last name. */
+            last_name: string;
+            /**
+             * @description Numeric PIN the employee enters to sign in at the point of sale, or null for none. Six digits, and unique within the banner. A deactivated employee cannot hold one unless the same request reactivates them.
+             * @default null
+             */
+            pin: string | null;
+            /** @description Roles the employee holds. Supplying this replaces every role the employee holds. */
+            roles?: components["schemas"]["UpdateEmployeeRole"][];
+        };
+        CreateGiftCardRequest: {
+            /** @description The account number, typically read from the physical card's magnetic stripe. Note that this should just be the account number, not any additional Track data. */
+            account_number?: string | null;
+            /**
+             * Format: positive-monetary
+             * @description Amount to load onto the gift card.
+             * @example 199.99
+             */
+            amount: string;
+            /** @description Description to write alongside the funding transaction */
+            description?: string;
+            /** @description ID of the employee responsible. Only a register sends one, and it is required there; a back-office session records the signed-in user, and an API credential records itself. */
+            employee_id?: string;
+            /** @description Idempotency key to avoid duplicate transactions. Only one transaction may exist with a given idempotency key. Subsequent requests with the same idempotency key will return the data persisted in the database. */
+            idempotency_key: string;
+            /** @description ID of the checkout that funded the gift card, from the transactions resource. Only a register sends one. */
+            order_id?: string;
+            /** @description Barcode on the physical gift card. Provide this, `recipient_phone_number`, or `account_number`. */
+            physical_barcode?: string | null;
+            /**
+             * Format: phone
+             * @description Phone number of the Shopper that funded the gift card. This may be the same as `recipient_phone_number` if a shopper buys a gift card for themselves.
+             */
+            purchaser_phone_number?: string;
+            /**
+             * Format: phone
+             * @description Phone number of the shopper who will own this gift card. This shopper receives messages about this and future transactions. Provide this, `physical_barcode`, or `account_number`.
+             */
+            recipient_phone_number?: string | null;
+            /** @description ID of the store the funding belongs to. Optional: name a store to attribute it to, or omit it for funding not tied to a store. */
+            store_id?: string;
+        };
+        CreateGiftCardTransactionRequest: {
+            /**
+             * Format: monetary
+             * @description Amount to be added or removed from the gift card
+             * @example 199.99
+             */
+            amount: string;
+            /** @description Description to write alongside the transaction */
+            description?: string;
+            /** @description ID of the employee responsible. Only a register sends one, and it is required there; a back-office session records the signed-in user, and an API credential records itself. */
+            employee_id?: string;
+            /** @description Idempotency key to avoid duplicate transactions. Only one transaction may exist with a given idempotency key. Subsequent requests with the same idempotency key will return the data persisted in the database. */
+            idempotency_key: string;
+            /** @description ID of the checkout this transaction is tied to, from the transactions resource. Only a register sends one. */
+            order_id?: string;
+            /** @description ID of the store the transaction belongs to. Optional: name a store to attribute the adjustment to it, or omit it for one that is not tied to a store. */
+            store_id?: string;
+            /** @description The kind of transaction. An API client may only send `manual_adjustment`; the other types are recorded at the point of sale. */
+            type: components["schemas"]["GiftCardTransactionType"];
+        };
+        CreateHouseAccountRequest: {
+            /**
+             * Format: monetary
+             * @description Balance to open the account with. Money on the account. A negative balance is what the customer owes the store; a positive balance is credit they can spend. Defaults to zero.
+             * @example 199.99
+             */
+            balance?: string;
+            /**
+             * Format: email
+             * @description Email address on file for the account holder.
+             */
+            email?: string | null;
+            /** @description Name the account is held under, usually the customer or business it belongs to. */
+            name: string;
+            /**
+             * Format: phone
+             * @description Phone number on file for the account holder.
+             */
+            phone_number?: string | null;
+            /** @description Account number the store gives the customer, and what a cashier looks the account up by. Unique within the banner. */
+            shopper_facing_id: string;
+            /** @description Whether the account may be charged. A suspended or deactivated account cannot be charged at the register, though a suspended one still accepts payments against what is owed. Defaults to `active`. */
+            status?: components["schemas"]["HouseAccountStatus"];
+        };
+        /** @description Records a charge or payment against a house account, either a sale tendered to the account or an adjustment such as a customer settling what they owe. */
+        CreateHouseAccountTransactionRequest: {
+            /**
+             * Format: monetary
+             * @description Money the transaction moved. A negative amount is a charge, which grows what the customer owes; a positive amount is a payment or refund, which reduces it.
+             * @example 199.99
+             */
+            amount: string;
+            /** @description Note to write alongside the transaction, such as why the adjustment was made. */
+            description?: string;
+            /** @description ID of the employee who took the transaction. Only a register sends one, and it is required there; a back-office session records the signed-in user and an API key records itself. */
+            employee_id?: string;
+            /** @description Key supplied when the transaction was created, unique within the banner. Sending the same key again returns the transaction already recorded rather than charging the account twice. */
+            idempotency_key: string;
+            /**
+             * @description Your own key/value pairs, stored with the transaction and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
+             * @example {
+             *       "order_source": "shopify",
+             *       "fulfillment_id": "88213"
+             *     }
+             */
+            metadata?: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Format: uuid
+             * @description ID of the checkout this settles, from the transactions resource. Required on an `order_payment` and rejected on a `manual_adjustment`.
+             */
+            order_id?: string;
+            /** @description ID of the store the transaction belongs to. Required, except from a register, which posts against the store it is installed in. */
+            store_id?: string;
+            /** @description What produced the transaction: a sale or refund rung up at a register, or an adjustment made in the back office. */
+            type: components["schemas"]["HouseAccountTransactionType"];
+        };
         CreateItemModifierRequest: {
             /** @description Human-readable item modifier name. */
             name: string;
@@ -908,6 +1253,8 @@ export interface components {
              * @example 199.99
              */
             retail_price: string;
+            /** @description Whether the quantity coming back on this line returns to your on-hand count. Overrides the refund-level return_to_inventory. Defaults to the refund-level value, or to false when neither is provided. Acted on when the refund is first recorded, so resending the same refund ID does not revisit it. */
+            return_to_inventory?: boolean;
             /**
              * Format: negative-monetary
              * @description Sales tax refunded on this line, as a negative amount. Defaults to 0.
@@ -1001,6 +1348,8 @@ export interface components {
             } | null;
             /** @description Payments the refund returns money to. */
             payments: components["schemas"]["CreateRefundPayment"][];
+            /** @description Whether the products coming back return to your on-hand counts. Applies to every line that does not answer for itself; a line providing its own return_to_inventory overrides it. Defaults to false. Acted on when the refund is first recorded, so resending the same refund ID does not revisit it. */
+            return_to_inventory?: boolean;
             /**
              * Format: negative-monetary
              * @description Total sales tax refunded, as a negative amount. Must equal the sum of the line-item tax totals.
@@ -1157,6 +1506,22 @@ export interface components {
         };
         /** @enum {string} */
         CreateTransactionCardBrand: "american_express" | "china_union_pay" | "debit" | "diners_club" | "discover" | "jcb" | "mastercard" | "visa";
+        /** @description A gift card sold on a transaction being recorded, with the amount loaded onto it and its recipient. */
+        CreateTransactionGiftCardSale: {
+            /**
+             * Format: positive-monetary
+             * @description Amount loaded onto the gift card.
+             * @example 199.99
+             */
+            amount: string;
+            /** @description Barcode printed on the physical gift card. Provide this, `recipient_phone_number`, or both. */
+            physical_barcode?: string | null;
+            /**
+             * Format: phone
+             * @description Phone number of the shopper who will own the gift card. They receive a text message with the card, and messages about future transactions. Provide this, `physical_barcode`, or both.
+             */
+            recipient_phone_number?: string | null;
+        };
         /** @description A product sold on a transaction being recorded, with its quantity or weight, price, savings, fees, and tax. */
         CreateTransactionLineItem: {
             /**
@@ -1261,9 +1626,11 @@ export interface components {
             employee_id?: string | null;
             /** @description Your own identifier for this transaction, such as an order number from your e-commerce platform. Stored exactly as provided and never interpreted, and you can filter transactions by it. Vori does not require it to be unique. */
             external_id?: string | null;
+            /** @description Gift cards sold on the transaction. */
+            gift_card_sales?: components["schemas"]["CreateTransactionGiftCardSale"][];
             /** @description ID of the lane to record this transaction under. Defaults to the lane Vori maintains for transactions submitted through this API. */
             lane_id?: string | null;
-            /** @description Products on the transaction. */
+            /** @description Products on the transaction. May be empty for a gift-card-only transaction. */
             line_items: components["schemas"]["CreateTransactionLineItem"][];
             /**
              * @description Your own key/value pairs, stored with the transaction and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
@@ -1292,7 +1659,7 @@ export interface components {
             tax_total: string;
             /**
              * Format: positive-monetary
-             * @description Final transaction total including tax. Must equal the sum of the line totals, and the payments must add up to this amount.
+             * @description Final transaction total including tax. Must equal the sum of the line totals plus the gift card sale amounts, and the payments must add up to this amount.
              * @example 199.99
              */
             total: string;
@@ -1309,6 +1676,16 @@ export interface components {
              * @example 199.99
              */
             value: string;
+        };
+        DeactivateGiftCardRequest: {
+            /** @description ID of the employee responsible. Only a register sends one, and it is required there; a back-office session records the signed-in user, and an API credential records itself. */
+            employee_id?: string;
+            /** @description Explanation for why the gift card is being deactivated. */
+            reason: string;
+        };
+        DeactivatedEmployeeCredentialsError: {
+            /** @enum {string} */
+            error_code: "deactivated_employee_credentials";
         };
         DepartmentHasActiveProductsError: {
             /** @enum {string} */
@@ -1361,6 +1738,12 @@ export interface components {
             barcode_type: components["schemas"]["BarcodeType"];
             store_product_id: string;
         };
+        DuplicateBarcodeError: {
+            barcode: string;
+            /** @enum {string} */
+            error_code: "duplicate_barcode";
+            gift_card_id: string;
+        };
         DuplicateBarcodeTypesForProductError: {
             duplicates: components["schemas"]["DuplicateBarcodeDetail"][];
             /** @enum {string} */
@@ -1371,12 +1754,28 @@ export interface components {
             /** @enum {string} */
             error_code: "duplicate_barcodes";
         };
+        DuplicateHouseAccountShopperFacingIDError: {
+            /** @enum {string} */
+            error_code: "duplicate_house_account_shopper_facing_id";
+            house_account_id: string;
+            shopper_facing_id: string;
+        };
+        DuplicateIdempotencyKeyError: {
+            /** @enum {string} */
+            error_code: "duplicate_idempotency_key";
+        };
+        EmailAddressAlreadyAssignedError: {
+            /** @enum {string} */
+            error_code: "email_address_already_assigned";
+        };
         /** @description A staff member at a store, to whom point-of-sale activity can be attributed. */
         Employee: {
             /** @description Unique identifier for the record. */
             id: string;
             /** @description Effective rule that determines how the employee authenticates at the POS. */
             authentication_rule: components["schemas"]["AuthenticationRule"] | null;
+            /** @description Barcode on the badge the employee scans to sign in at the point of sale, or null when none is configured. Returned only when requested with `include=badge_barcode` by a caller holding the `employees:read_credentials` permission, and absent from the response otherwise. */
+            badge_barcode?: string | null;
             /**
              * Format: date-time
              * @description When the record was created.
@@ -1398,6 +1797,8 @@ export interface components {
             first_name: string;
             /** @description Employee's last name. */
             last_name: string;
+            /** @description Numeric PIN used by the employee for POS authentication, or null when none is configured. Returned only when requested with `include=pin` by a caller holding the `employees:read_credentials` permission, and absent from the response otherwise. */
+            pin?: string | null;
             /** @description Roles assigned to the employee. */
             roles: components["schemas"]["EmployeeRole"][];
             /**
@@ -1408,11 +1809,17 @@ export interface components {
             /** @description Whether the employee exists only to attribute orders and cannot sign in at a terminal. */
             virtual: boolean;
         };
+        /** @enum {string} */
+        EmployeeCredential: "badge_barcode" | "pin";
         /** @description A page of employees. */
         EmployeeList: {
             data: components["schemas"]["Employee"][];
             /** @description Whether more records follow this page. */
             has_more: boolean;
+        };
+        EmployeeNotUserEditableError: {
+            /** @enum {string} */
+            error_code: "employee_not_user_editable";
         };
         /** @description A role held by an employee, and the store it applies at. The same role can be held at more than one store. */
         EmployeeRole: {
@@ -1422,6 +1829,11 @@ export interface components {
             name: components["schemas"]["RoleName"];
             /** @description The store the role applies at, or null when it applies at every store in the banner. */
             store_id: string | null;
+        };
+        ExistingOwnerError: {
+            /** @enum {string} */
+            error_code: "existing_owner";
+            owner_id: string;
         };
         FoodModifier: {
             id: string;
@@ -1440,6 +1852,251 @@ export interface components {
              */
             value: string;
         };
+        /** @description A prepaid balance a shopper spends at the register. It can be digital, tied to a shopper, or backed by one or more physical cards. A gift card belongs to the banner rather than to any one store, and can be sold, redeemed, or reloaded at any of its registers. */
+        GiftCard: {
+            /** @description Unique identifier for the record. */
+            id: string;
+            /**
+             * Format: monetary
+             * @description Current balance on the gift card.
+             * @example 199.99
+             */
+            balance: string;
+            /** @description Barcodes on the physical cards backing this gift card, across the card and any cards merged into it. */
+            barcodes: string[];
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            created_at: string;
+            /**
+             * Format: date-time
+             * @description When the gift card was deactivated, or null when it is active.
+             */
+            deactivated_at: string | null;
+            /** @description ID of the API credential that deactivated the gift card, or null when it is active or was deactivated by a person. */
+            deactivated_by_api_client_id: string | null;
+            /** @description ID of the employee who deactivated the gift card, or null when it is active or was deactivated by another actor. */
+            deactivated_by_employee_id: string | null;
+            /** @description ID of the back-office user who deactivated the gift card, or null when it is active or was deactivated by another actor. */
+            deactivated_by_user_id: string | null;
+            /** @description Reason recorded when the gift card was deactivated, or null when it is active. */
+            deactivation_reason: string | null;
+            /**
+             * Format: date-time
+             * @description When the gift card was last used in a sale or refund, or null when it has not been used yet.
+             */
+            last_order_at: string | null;
+            /** @description Account numbers encoded on the magnetic stripe of the physical cards. */
+            magstripe_account_numbers: string[];
+            /** @description ID of the shopper who owns the gift card, or null when it has no owner. */
+            owner_id: string | null;
+            /** @description Account numbers printed on the physical cards. */
+            printed_account_numbers: string[];
+            /** @description ID of the shopper who purchased the gift card, or null when unknown. */
+            purchaser_id: string | null;
+            /** @description Short human-readable ID for the gift card, shown to shoppers on receipts and messages. */
+            shopper_facing_id: string;
+            /** @description Whether the gift card is active and can be used, or has been deactivated. */
+            status: components["schemas"]["GiftCardStatus"];
+            /**
+             * Format: date-time
+             * @description When the record was last changed.
+             */
+            updated_at: string;
+        };
+        GiftCardDeactivatedError: {
+            /** @enum {string} */
+            error_code: "gift_card_deactivated";
+        };
+        GiftCardList: {
+            data: components["schemas"]["GiftCard"][];
+            /** @description Whether more records follow this page. */
+            has_more: boolean;
+        };
+        GiftCardSaleIdentifierRequiredError: {
+            /** @enum {string} */
+            error_code: "gift_card_sale_identifier_required";
+            error_details: components["schemas"]["GiftCardSaleIdentifierRequiredErrorDetails"];
+        };
+        GiftCardSaleIdentifierRequiredErrorDetails: {
+            index: number;
+        };
+        /** @enum {string} */
+        GiftCardStatus: "active" | "deactivated";
+        /** @description One credit or debit on a gift card. The ledger is append-only, so a transaction is never edited or removed once recorded; a correction is another transaction. */
+        GiftCardTransaction: {
+            /** @description Unique identifier for the record. */
+            id: string;
+            /**
+             * Format: monetary
+             * @description Money the transaction moved on the card. A positive amount adds funds; a negative amount spends them.
+             * @example 199.99
+             */
+            amount: string;
+            /** @description ID of the API credential that recorded the transaction. Null when a person did. */
+            api_client_id: string | null;
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            created_at: string;
+            /** @description Note written alongside the transaction, such as why an adjustment was made. */
+            description: string | null;
+            /**
+             * Format: date-time
+             * @description When the transaction took effect. A sale carries the time it was completed at the register, so this can be earlier than `created_at`, which is when the transaction was recorded on the ledger.
+             */
+            effective_at: string;
+            /** @description ID of the employee who took the transaction at a register, or null when it was made in the back office or by an API credential. */
+            employee_id: string | null;
+            /** @description Key supplied when the transaction was created, unique within the banner. Sending the same key again returns the transaction already recorded rather than moving the balance twice. */
+            idempotency_key: string;
+            /**
+             * Format: uuid
+             * @description ID of the checkout this transaction is tied to, from the transactions resource. Null when the transaction is not tied to a checkout.
+             */
+            order_id: string | null;
+            /** @description ID of the store where the transaction took place. Null for a transaction not tied to a store, such as a back-office adjustment. */
+            store_id: string | null;
+            /** @description What produced the transaction: funds loaded onto the card, the card spent on a sale or restored by a refund, or a back-office adjustment. */
+            type: components["schemas"]["GiftCardTransactionType"];
+            /**
+             * Format: date-time
+             * @description When the record was last changed.
+             */
+            updated_at: string;
+            /** @description ID of the back-office user who made the transaction. Null for a transaction taken at a register or by an API credential. */
+            user_id: string | null;
+        };
+        GiftCardTransactionList: {
+            data: components["schemas"]["GiftCardTransaction"][];
+            /** @description Whether more records follow this page. */
+            has_more: boolean;
+        };
+        /** @enum {string} */
+        GiftCardTransactionType: "book_transfer" | "funding_from_payment" | "manual_adjustment" | "order_payment";
+        /** @description A charge account, or tab, a store lets a customer buy against and settle later. A house account belongs to the banner rather than to any one store, and can be charged at any of its registers. */
+        HouseAccount: {
+            /** @description Unique identifier for the record. */
+            id: string;
+            /**
+             * Format: monetary
+             * @description Money on the account. A negative balance is what the customer owes the store; a positive balance is credit they can spend.
+             * @example 199.99
+             */
+            balance: string;
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            created_at: string;
+            /**
+             * Format: email
+             * @description Email address on file for the account holder.
+             */
+            email: string | null;
+            /**
+             * Format: date-time
+             * @description When an order was last charged to or refunded against this account. Null if it has never been used at a register.
+             */
+            last_order_at: string | null;
+            /** @description Name the account is held under, usually the customer or business it belongs to. */
+            name: string;
+            /**
+             * Format: phone
+             * @description Phone number on file for the account holder.
+             */
+            phone_number: string | null;
+            /** @description Account number the store gives the customer, and what a cashier looks the account up by. Unique within the banner. */
+            shopper_facing_id: string;
+            /** @description Whether the account may be charged. A suspended or deactivated account cannot be charged at the register, though a suspended one still accepts payments against what is owed. */
+            status: components["schemas"]["HouseAccountStatus"];
+            /**
+             * Format: date-time
+             * @description When the record was last changed.
+             */
+            updated_at: string;
+        };
+        HouseAccountDeactivatedError: {
+            /** @enum {string} */
+            error_code: "house_account_deactivated";
+        };
+        HouseAccountList: {
+            data: components["schemas"]["HouseAccount"][];
+            /** @description Whether more records follow this page. */
+            has_more: boolean;
+        };
+        /** @enum {string} */
+        HouseAccountStatus: "active" | "deactivated" | "suspended";
+        /** @description One charge or payment on a house account. The ledger is append-only, so a transaction is never edited or removed once recorded; a correction is another transaction. */
+        HouseAccountTransaction: {
+            /** @description Unique identifier for the record. */
+            id: string;
+            /**
+             * Format: monetary
+             * @description Money the transaction moved. A negative amount is a charge, which grows what the customer owes; a positive amount is a payment or refund, which reduces it.
+             * @example 199.99
+             */
+            amount: string;
+            /** @description ID of the API credential that recorded the transaction. Null when a person did. */
+            api_client_id: string | null;
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            created_at: string;
+            /** @description Note written alongside the transaction, such as why an adjustment was made. */
+            description: string | null;
+            /**
+             * Format: date-time
+             * @description When the transaction took effect. A sale carries the time it was completed at the register, which can be earlier than when it reached the ledger.
+             */
+            effective_at: string;
+            /** @description ID of the employee who took the transaction at a register, or null when it was made in the back office. */
+            employee_id: string | null;
+            /**
+             * Format: monetary
+             * @description The account balance after this transaction. A negative balance is what the customer owes the store. A positive balance is credit the customer can spend.
+             * @example 199.99
+             */
+            ending_balance: string;
+            /** @description Key supplied when the transaction was created, unique within the banner. Sending the same key again returns the transaction already recorded rather than charging the account twice. */
+            idempotency_key: string;
+            /**
+             * @description Your own key/value pairs, exactly as supplied when the transaction was recorded.
+             * @example {
+             *       "order_source": "shopify",
+             *       "fulfillment_id": "88213"
+             *     }
+             */
+            metadata: {
+                [key: string]: string;
+            } | null;
+            /**
+             * Format: uuid
+             * @description ID of the checkout this settled, from the transactions resource. Null when the ledger entry is not tied to a checkout.
+             */
+            order_id: string | null;
+            /** @description ID of the store where the transaction took place. */
+            store_id: string;
+            /** @description What produced the transaction: a sale or refund rung up at a register, or an adjustment made in the back office. */
+            type: components["schemas"]["HouseAccountTransactionType"];
+            /**
+             * Format: date-time
+             * @description When the record was last changed.
+             */
+            updated_at: string;
+            /** @description ID of the back-office user who made the adjustment. Null for a transaction taken at a register. */
+            user_id: string | null;
+        };
+        HouseAccountTransactionList: {
+            data: components["schemas"]["HouseAccountTransaction"][];
+            /** @description Whether more records follow this page. */
+            has_more: boolean;
+        };
+        /** @enum {string} */
+        HouseAccountTransactionType: "manual_adjustment" | "order_payment";
         InitialStoreProductInventory: {
             /**
              * Format: date-time
@@ -1450,6 +2107,10 @@ export interface components {
             count: string;
             source_type: components["schemas"]["InventoryChangeSourceType"];
         };
+        InsufficientGiftCardBalanceError: {
+            /** @enum {string} */
+            error_code: "insufficient_gift_card_balance";
+        };
         InsufficientPermissionsError: {
             /** @enum {string} */
             error_code: "insufficient_permissions";
@@ -1458,6 +2119,10 @@ export interface components {
         InsufficientPermissionsErrorDetails: {
             action: components["schemas"]["Action"];
             resource: components["schemas"]["Resource"];
+        };
+        InvalidAuthenticationRuleError: {
+            /** @enum {string} */
+            error_code: "invalid_authentication_rule";
         };
         InvalidBarcodeError: {
             /** @enum {string} */
@@ -1470,6 +2135,14 @@ export interface components {
         InvalidDepartmentHierarchyError: {
             /** @enum {string} */
             error_code: "invalid_department_hierarchy";
+        };
+        InvalidEmployeeError: {
+            /** @enum {string} */
+            error_code: "invalid_employee";
+        };
+        InvalidEmployeeRoleError: {
+            /** @enum {string} */
+            error_code: "invalid_employee_role";
         };
         InvalidFoodModifiersError: {
             /** @enum {string} */
@@ -1503,9 +2176,17 @@ export interface components {
             /** @enum {string} */
             error_code: "invalid_tax_rates";
         };
+        InvalidTopupAmountError: {
+            /** @enum {string} */
+            error_code: "invalid_topup_amount";
+        };
         InvalidUnitOfMeasureError: {
             /** @enum {string} */
             error_code: "invalid_unit_of_measure";
+        };
+        InvalidUserError: {
+            /** @enum {string} */
+            error_code: "invalid_user";
         };
         InvalidVariableWeightsError: {
             /** @enum {string} */
@@ -1608,6 +2289,22 @@ export interface components {
             /** @description Whether more records follow this page. */
             has_more: boolean;
         };
+        MissingCredentialsForAuthenticationRuleError: {
+            /** @enum {string} */
+            error_code: "missing_credentials_for_authentication_rule";
+        };
+        MissingEmployeeError: {
+            /** @enum {string} */
+            error_code: "missing_employee";
+        };
+        MissingGiftCardIdentifierError: {
+            /** @enum {string} */
+            error_code: "missing_gift_card_identifier";
+        };
+        MissingOrderError: {
+            /** @enum {string} */
+            error_code: "missing_order";
+        };
         MissingStoreError: {
             /** @enum {string} */
             error_code: "missing_store";
@@ -1623,6 +2320,17 @@ export interface components {
         NoBannerAssociationError: {
             /** @enum {string} */
             error_code: "no_banner_association";
+        };
+        /** @enum {string} */
+        PersistableVendorProductStatus: "AVAILABLE" | "DISCONTINUED" | "UNAVAILABLE";
+        PhysicalGiftCardDisassociationMissingOwnerError: {
+            /** @enum {string} */
+            error_code: "physical_gift_card_disassociation_missing_owner";
+            gift_card_id: string;
+        };
+        PinAlreadyAssignedError: {
+            /** @enum {string} */
+            error_code: "pin_already_assigned";
         };
         /** @enum {string} */
         PriceTagModifier: "BOTTLE_DEPOSIT" | "CRV";
@@ -1677,7 +2385,7 @@ export interface components {
             transaction_id: string;
         };
         /** @enum {string} */
-        Resource: "*" | "accounting_integration" | "agent_chats" | "api_clients" | "asynchronous_tasks" | "banners" | "blackhawk_transactions" | "capabilities" | "coupons" | "custom_quick_actions" | "datacap_transactions" | "departments" | "discounts" | "ditto_auth_tokens" | "edge_agents" | "electronic_shelf_labels" | "employees" | "files" | "food_modifiers" | "gift_cards" | "gl_code_mappings" | "house_accounts" | "inventory" | "inventory_sessions" | "inventory_settings" | "invoices" | "item_modifiers" | "label_dimension_sets" | "label_sheet_profiles" | "label_stock_products" | "lanes" | "loyalty_bonuses" | "loyalty_campaigns" | "loyalty_rewards" | "notification_templates" | "offers" | "order_guides" | "pos_banner_configurations" | "pos_orders" | "pos_tills" | "price_tags" | "product_ranges" | "products" | "promotions" | "purchase_orders" | "receiving" | "reporting" | "revision_sessions" | "revisions" | "roles" | "shopper_tags" | "shoppers" | "store_product_inventory_counts" | "store_product_lots" | "store_product_rules" | "store_product_tag_templates" | "store_snap_incentive_program_coupons" | "store_vendor_merge_requests" | "store_vendor_product_merge_requests" | "store_vendor_products" | "store_vendors" | "stores" | "tag_printings" | "tag_template_presets" | "tag_templates" | "tax_rates" | "users" | "variable_weights" | "vendor_merge_requests" | "vendor_product_merge_requests" | "vendors" | "wallet_payments" | "wic_products";
+        Resource: "*" | "accounting_integration" | "agent_chats" | "api_clients" | "asynchronous_tasks" | "banners" | "blackhawk_transactions" | "capabilities" | "coupons" | "custom_quick_actions" | "datacap_transactions" | "departments" | "discounts" | "ditto_auth_tokens" | "edge_agents" | "electronic_shelf_labels" | "employees" | "feature_orientations" | "files" | "food_modifiers" | "gift_cards" | "gl_code_mappings" | "house_accounts" | "inventory" | "inventory_sessions" | "inventory_settings" | "invoices" | "item_modifiers" | "label_dimension_sets" | "label_sheet_profiles" | "label_stock_products" | "lanes" | "loyalty_bonuses" | "loyalty_campaigns" | "loyalty_rewards" | "notification_templates" | "offers" | "order_guides" | "pos_banner_configurations" | "pos_orders" | "pos_tills" | "price_tags" | "product_ranges" | "products" | "promotions" | "purchase_orders" | "receiving" | "reporting" | "revision_sessions" | "revisions" | "roles" | "shopper_tags" | "shoppers" | "store_product_inventory_counts" | "store_product_lots" | "store_product_rules" | "store_product_tag_templates" | "store_snap_incentive_program_coupons" | "store_vendor_merge_requests" | "store_vendor_product_merge_requests" | "store_vendor_products" | "store_vendors" | "stores" | "tag_printings" | "tag_template_presets" | "tag_templates" | "tax_rates" | "users" | "variable_weights" | "vendor_merge_requests" | "vendor_product_merge_requests" | "vendors" | "wallet_payments" | "wic_products";
         /** @enum {string} */
         RoleName: "everyone" | "manager";
         /** @description A person a store can recognize at checkout, whether as a loyalty member or as the holder of a gift card. A shopper belongs to the banner rather than to any one store. */
@@ -1917,9 +2625,11 @@ export interface components {
         StoreProductSelectionCriteria: {
             /** @description Barcodes to select. A barcode carried by products in several stores selects all of them unless store_id is supplied. */
             barcodes?: string[];
+            /** @description Store product IDs to leave out. Selects every product in `store_id` except these. Requires `store_id`, and cannot be combined with `ids` or `barcodes`. */
+            exclude_ids?: string[];
             /** @description Store product IDs to select. */
             ids?: string[];
-            /** @description Restricts the selection to one store. Omit to select matching products across the whole banner. */
+            /** @description Restricts the selection to one store. Omit to select matching products across the whole banner. Required when `exclude_ids` is supplied. */
             store_id?: string;
         };
         /** @enum {string} */
@@ -2036,6 +2746,11 @@ export interface components {
             } | null;
             /** @description Payments collected for the transaction. */
             payments: components["schemas"]["TransactionPayment"][];
+            /**
+             * @description Loyalty points the shopper earned on this transaction, computed from the products sold and the store banner loyalty program. Zero when the transaction names no shopper or the banner has no active loyalty program. Negative on a refund, which reverses the points the original sale earned.
+             * @example 199.99
+             */
+            points_earned: string;
             /**
              * Format: monetary
              * @description Total savings from promotions.
@@ -2504,6 +3219,10 @@ export interface components {
             /** @description Tare container weight subtracted from the scale reading, as it was recorded at the time of sale. */
             variable_weight: components["schemas"]["CompactVariableWeight"];
         };
+        TransactionMissingItemsError: {
+            /** @enum {string} */
+            error_code: "transaction_missing_items";
+        };
         /** @description A payment collected on a transaction, covering how it was tendered, the amounts requested and authorized, any tip or cash back, the till it was paid into, and any reversals against it. */
         TransactionPayment: {
             /** @description Unique identifier for the record. */
@@ -2653,6 +3372,22 @@ export interface components {
             /** @enum {string} */
             error_code: "unauthorized_store";
         };
+        UnexpectedEmployeeError: {
+            /** @enum {string} */
+            error_code: "unexpected_employee";
+        };
+        UnexpectedOrderError: {
+            /** @enum {string} */
+            error_code: "unexpected_order";
+        };
+        UnexpectedTransactionTypeError: {
+            /** @enum {string} */
+            error_code: "unexpected_transaction_type";
+        };
+        UnsupportedFilterTypeError: {
+            /** @enum {string} */
+            error_code: "unsupported_filter_type";
+        };
         UnsupportedStateFieldError: {
             /** @enum {string} */
             error_code: "unsupported_state_field";
@@ -2667,6 +3402,79 @@ export interface components {
             name?: string | null;
             /** @description How `amount` is applied: as a fixed monetary reduction or a percentage reduction. */
             type?: components["schemas"]["DiscountType"];
+        };
+        /** @description Values for updating an employee. An omitted property is left unchanged, and an explicit null clears a property that permits one. */
+        UpdateEmployeeRequest: {
+            /**
+             * @description How the employee signs in at the point of sale, or null to sign in with a PIN. Every method the rule names must have its credential set on the employee.
+             * @default null
+             */
+            authentication_rule: components["schemas"]["AuthenticationRule"] | null;
+            /**
+             * @description Barcode on the badge the employee scans to sign in at the point of sale, or null for none. Unique within the banner. A deactivated employee cannot hold one unless the same request reactivates them.
+             * @default null
+             */
+            badge_barcode: string | null;
+            /**
+             * Format: date-time
+             * @description When the employee was deactivated. Null means active, so setting it back to null reactivates the employee. Deactivating releases the employee's PIN and barcode so another employee can take them.
+             */
+            deactivated_at?: string | null;
+            /**
+             * Format: email
+             * @description Employee's email address, or null for none. Unique within the banner.
+             * @default null
+             */
+            email_address: string | null;
+            /** @description Employee's first name. */
+            first_name?: string;
+            /** @description Employee's last name. */
+            last_name?: string;
+            /**
+             * @description Numeric PIN the employee enters to sign in at the point of sale, or null for none. Six digits, and unique within the banner. A deactivated employee cannot hold one unless the same request reactivates them.
+             * @default null
+             */
+            pin: string | null;
+            /** @description Roles the employee holds. Supplying this replaces every role the employee holds. */
+            roles?: components["schemas"]["UpdateEmployeeRole"][];
+        };
+        /** @description A role to grant an employee, and the store it applies at. */
+        UpdateEmployeeRole: {
+            /** @description The role to grant. */
+            name: components["schemas"]["AssignableRoleName"];
+            /** @description The store the role applies at, or null to apply it at every store in the banner. */
+            store_id?: string | null;
+        };
+        UpdateGiftCardRequest: {
+            /** @description ID of the employee responsible. Only a register sends one, and it is required there; a back-office session records the signed-in user, and an API credential records itself. */
+            employee_id?: string;
+            /** @description Idempotency key to avoid duplicate transactions. */
+            idempotency_key: string;
+            /** @description The desired end state of which magnetic-stripe account numbers (physical gift cards) are associated with the specified gift card. If this field is not provided, no account numbers will be modified. */
+            magstripe_account_numbers?: string[];
+            /**
+             * Format: phone
+             * @description Phone number of the Shopper who will own this gift card. This shopper will receive messages about this and future transactions.
+             */
+            owner_phone_number?: string;
+            /** @description The desired end state of which barcodes (physical gift cards) are associated with the specified gift card. If this field is not provided, no barcodes will be modified. */
+            physical_barcodes?: string[];
+        };
+        UpdateHouseAccountRequest: {
+            /**
+             * Format: email
+             * @description Email address on file for the account holder.
+             */
+            email?: string | null;
+            /** @description Name the account is held under, usually the customer or business it belongs to. */
+            name?: string;
+            /**
+             * Format: phone
+             * @description Phone number on file for the account holder.
+             */
+            phone_number?: string | null;
+            /** @description Account number the store gives the customer, and what a cashier looks the account up by. Unique within the banner. */
+            shopper_facing_id?: string;
         };
         UpdateItemModifierRequest: {
             /** @description Human-readable item modifier name. */
@@ -2825,6 +3633,20 @@ export interface components {
             value?: string;
             /** @description How `value` is applied: a fixed amount or a percentage. */
             value_type?: components["schemas"]["TaxRateValueType"];
+        };
+        UpdateTooManyAccountNumbers: {
+            account_numbers: string[];
+            /** @enum {string} */
+            error_code: "update_too_many_account_numbers";
+            gift_card_ids: string[];
+            new_account_numbers: string[];
+        };
+        UpdateTooManyBarcodes: {
+            barcodes: string[];
+            /** @enum {string} */
+            error_code: "update_too_many_barcodes";
+            gift_card_ids: string[];
+            new_barcodes: string[];
         };
         UpdateVariableWeightRequest: {
             /** @description Human-readable name for the tare container, such as "Produce bag". */
@@ -3106,10 +3928,21 @@ export interface operations {
                 active?: boolean;
                 /** @description Return records that precede the record with this ID, in list order. */
                 ending_before?: string;
+                /**
+                 * @description Credentials to return on each employee. Neither is returned by default. Repeat the parameter to request both, for example `?include=pin&include=badge_barcode`.
+                 *
+                 *     Requesting a credential without the employees:read_credentials permission is rejected rather than silently omitted.
+                 *
+                 *     - `pin` — returns `pin`, the PIN the employee signs in with.
+                 *     - `badge_barcode` — returns `badge_barcode`, the badge the employee scans to sign in.
+                 */
+                include?: components["schemas"]["EmployeeCredential"][];
                 /** @description Maximum number of records to return. */
                 limit?: number;
                 /** @description Return records that follow the record with this ID, in list order. */
                 starting_after?: string;
+                /** @description Whether the employee exists only to attribute orders and cannot sign in at a terminal. Omit to match both kinds. */
+                virtual?: boolean;
             };
             header?: never;
             path?: never;
@@ -3143,9 +3976,58 @@ export interface operations {
             };
         };
     };
-    getEmployee: {
+    createEmployee: {
         parameters: {
             query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateEmployeeRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Employee"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PinAlreadyAssignedError"] | components["schemas"]["BarcodeAlreadyAssignedError"] | components["schemas"]["EmailAddressAlreadyAssignedError"] | components["schemas"]["MissingCredentialsForAuthenticationRuleError"] | components["schemas"]["InvalidAuthenticationRuleError"] | components["schemas"]["InvalidEmployeeRoleError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["DeactivatedEmployeeCredentialsError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    getEmployee: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Credentials to return on each employee. Neither is returned by default. Repeat the parameter to request both, for example `?include=pin&include=badge_barcode`.
+                 *
+                 *     Requesting a credential without the employees:read_credentials permission is rejected rather than silently omitted.
+                 *
+                 *     - `pin` — returns `pin`, the PIN the employee signs in with.
+                 *     - `badge_barcode` — returns `badge_barcode`, the badge the employee scans to sign in.
+                 */
+                include?: components["schemas"]["EmployeeCredential"][];
+            };
             header?: never;
             path: {
                 id: string;
@@ -3170,6 +4052,779 @@ export interface operations {
                     "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
                 };
             };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteEmployee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmployeeNotUserEditableError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateEmployee: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateEmployeeRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Employee"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PinAlreadyAssignedError"] | components["schemas"]["BarcodeAlreadyAssignedError"] | components["schemas"]["EmailAddressAlreadyAssignedError"] | components["schemas"]["MissingCredentialsForAuthenticationRuleError"] | components["schemas"]["InvalidAuthenticationRuleError"] | components["schemas"]["InvalidEmployeeRoleError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["DeactivatedEmployeeCredentialsError"] | components["schemas"]["EmployeeNotUserEditableError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listGiftCards: {
+        parameters: {
+            query?: {
+                /** @description Only return the gift card carrying this barcode, on the card itself or a card merged into it. Matched exactly. */
+                barcode?: string;
+                /** @description Return records that precede the record with this ID, in list order. */
+                ending_before?: string;
+                /** @description Maximum number of records to return. */
+                limit?: number;
+                /** @description Only return the gift card carrying this magnetic-stripe account number, on the card itself or a card merged into it. Matched exactly. */
+                magstripe_account_number?: string;
+                /** @description Only return gift cards owned by this shopper. Accepts a TypeID or a UUID. Repeat to match any of up to 20 values. */
+                owner_shopper_id?: string[];
+                /** @description Return records that follow the record with this ID, in list order. */
+                starting_after?: string;
+                /** @description Whether the gift card is active and can be used, or has been deactivated. Repeat to match any of up to 20 values. */
+                status?: ("active" | "deactivated")[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiftCardList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictingListParametersError"] | components["schemas"]["InvalidListCursorError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    createGiftCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGiftCardRequest"];
+            };
+        };
+        responses: {
+            /** @description Gift card funded successfully. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiftCard"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InvalidEmployeeError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["InvalidUserError"] | components["schemas"]["MissingEmployeeError"] | components["schemas"]["MissingOrderError"] | components["schemas"]["MissingStoreError"] | components["schemas"]["UnexpectedEmployeeError"] | components["schemas"]["UnexpectedOrderError"] | components["schemas"]["DuplicateBarcodeError"] | components["schemas"]["MissingGiftCardIdentifierError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    getGiftCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiftCard"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateGiftCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateGiftCardRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiftCard"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiftCardDeactivatedError"] | components["schemas"]["ConflictingPropertyValuesError"] | components["schemas"]["DuplicateBarcodeError"] | components["schemas"]["ExistingOwnerError"] | components["schemas"]["PhysicalGiftCardDisassociationMissingOwnerError"] | components["schemas"]["UpdateTooManyAccountNumbers"] | components["schemas"]["UpdateTooManyBarcodes"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deactivateGiftCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeactivateGiftCardRequest"];
+            };
+        };
+        responses: {
+            /** @description Gift card deactivated. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiftCard"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"];
+                };
+            };
+            /** @description Gift card not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    reissueGiftCard: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Gift card reissued. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiftCard"];
+                };
+            };
+            /** @description Gift card is deactivated. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiftCardDeactivatedError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"];
+                };
+            };
+            /** @description Gift card not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getGiftCardTransactions: {
+        parameters: {
+            query?: {
+                /** @description Return records that precede the record with this ID, in list order. */
+                ending_before?: string;
+                /** @description Maximum number of records to return. */
+                limit?: number;
+                /** @description Return records that follow the record with this ID, in list order. */
+                starting_after?: string;
+                /** @description What produced the transaction: funds loaded onto the card, the card spent on a sale or restored by a refund, or a back-office adjustment. Repeat to match any of up to 20 values. */
+                type?: ("book_transfer" | "funding_from_payment" | "manual_adjustment" | "order_payment")[];
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiftCardTransactionList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictingListParametersError"] | components["schemas"]["InvalidListCursorError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            /** @description Gift card not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createGiftCardTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateGiftCardTransactionRequest"];
+            };
+        };
+        responses: {
+            /** @description Gift card transaction created successfully. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GiftCardTransaction"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateIdempotencyKeyError"] | components["schemas"]["GiftCardDeactivatedError"] | components["schemas"]["InsufficientGiftCardBalanceError"] | components["schemas"]["InvalidEmployeeError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["InvalidTopupAmountError"] | components["schemas"]["InvalidUserError"] | components["schemas"]["MissingEmployeeError"] | components["schemas"]["MissingOrderError"] | components["schemas"]["MissingStoreError"] | components["schemas"]["UnexpectedEmployeeError"] | components["schemas"]["UnexpectedOrderError"] | components["schemas"]["UnexpectedTransactionTypeError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            /** @description Gift card not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listHouseAccount: {
+        parameters: {
+            query?: {
+                /** @description Money on the account. A negative balance is what the customer owes the store; a positive balance is credit they can spend. Compared as stored, so `balance[lte]=-100` finds the accounts owing 100 or more. */
+                balance?: string;
+                /** @description Money on the account. A negative balance is what the customer owes the store; a positive balance is credit they can spend. Compared as stored, so `balance[lte]=-100` finds the accounts owing 100 or more. */
+                "balance[gt]"?: string;
+                /** @description Money on the account. A negative balance is what the customer owes the store; a positive balance is credit they can spend. Compared as stored, so `balance[lte]=-100` finds the accounts owing 100 or more. */
+                "balance[gte]"?: string;
+                /** @description Money on the account. A negative balance is what the customer owes the store; a positive balance is credit they can spend. Compared as stored, so `balance[lte]=-100` finds the accounts owing 100 or more. */
+                "balance[lt]"?: string;
+                /** @description Money on the account. A negative balance is what the customer owes the store; a positive balance is credit they can spend. Compared as stored, so `balance[lte]=-100` finds the accounts owing 100 or more. */
+                "balance[lte]"?: string;
+                /** @description Return records that precede the record with this ID, in list order. */
+                ending_before?: string;
+                /** @description Maximum number of records to return. */
+                limit?: number;
+                /** @description Account number the store gives the customer, and what a cashier looks the account up by. Unique within the banner. Matched exactly. */
+                shopper_facing_id?: string;
+                /** @description Return records that follow the record with this ID, in list order. */
+                starting_after?: string;
+                /** @description Whether the account may be charged. A suspended or deactivated account cannot be charged at the register, though a suspended one still accepts payments against what is owed. Repeat to match any of up to 20 values. */
+                status?: ("active" | "deactivated" | "suspended")[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseAccountList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictingListParametersError"] | components["schemas"]["InvalidListCursorError"];
+                };
+            };
+            /** @description The required capability is not enabled for the banner. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityRequiredException"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    createHouseAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateHouseAccountRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseAccount"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateHouseAccountShopperFacingIDError"];
+                };
+            };
+            /** @description The required capability is not enabled for the banner. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityRequiredException"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    getHouseAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseAccount"];
+                };
+            };
+            /** @description The required capability is not enabled for the banner. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityRequiredException"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateHouseAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateHouseAccountRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseAccount"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateHouseAccountShopperFacingIDError"];
+                };
+            };
+            /** @description The required capability is not enabled for the banner. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityRequiredException"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getHouseAccountTransactions: {
+        parameters: {
+            query?: {
+                /** @description Return records that precede the record with this ID, in list order. */
+                ending_before?: string;
+                /** @description Maximum number of records to return. */
+                limit?: number;
+                /** @description Return records that follow the record with this ID, in list order. */
+                starting_after?: string;
+                /** @description What produced the transaction: a sale or refund rung up at a register, or an adjustment made in the back office. Repeat to match any of up to 20 values. */
+                type?: ("manual_adjustment" | "order_payment")[];
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseAccountTransactionList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictingListParametersError"] | components["schemas"]["InvalidListCursorError"];
+                };
+            };
+            /** @description The house accounts capability is not enabled for the banner. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CapabilityRequiredException"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            /** @description House account not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createHouseAccountTransaction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateHouseAccountTransactionRequest"];
+            };
+        };
+        responses: {
+            /** @description House account transaction created successfully. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseAccountTransaction"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateIdempotencyKeyError"] | components["schemas"]["HouseAccountDeactivatedError"] | components["schemas"]["InvalidEmployeeError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["InvalidUserError"] | components["schemas"]["MissingEmployeeError"] | components["schemas"]["MissingOrderError"] | components["schemas"]["MissingStoreError"] | components["schemas"]["UnexpectedEmployeeError"] | components["schemas"]["UnexpectedOrderError"] | components["schemas"]["UnexpectedTransactionTypeError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            /** @description House account not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -3917,7 +5572,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidStoreProductsError"] | components["schemas"]["MissingStoreProductSelectionError"] | components["schemas"]["MultipleBannersSelectedError"];
+                    "application/json": components["schemas"]["InvalidStoreProductsError"] | components["schemas"]["MissingStoreProductSelectionError"] | components["schemas"]["MultipleBannersSelectedError"] | components["schemas"]["UnsupportedFilterTypeError"];
                 };
             };
             403: {
@@ -4487,7 +6142,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidStoreError"] | components["schemas"]["TransactionLaneNotFoundError"] | components["schemas"]["TransactionLaneStoreMismatchError"] | components["schemas"]["TransactionLaneNotVirtualError"] | components["schemas"]["TransactionEmployeeNotFoundError"] | components["schemas"]["TransactionEmployeeNotVirtualError"] | components["schemas"]["TransactionShopperNotFoundError"] | components["schemas"]["TransactionStoreProductsNotFoundError"] | components["schemas"]["TransactionItemModifiersNotFoundError"] | components["schemas"]["TransactionTotalsMismatchError"] | components["schemas"]["TransactionLineItemInvalidError"];
+                    "application/json": components["schemas"]["InvalidStoreError"] | components["schemas"]["TransactionMissingItemsError"] | components["schemas"]["GiftCardSaleIdentifierRequiredError"] | components["schemas"]["TransactionLaneNotFoundError"] | components["schemas"]["TransactionLaneStoreMismatchError"] | components["schemas"]["TransactionLaneNotVirtualError"] | components["schemas"]["TransactionEmployeeNotFoundError"] | components["schemas"]["TransactionEmployeeNotVirtualError"] | components["schemas"]["TransactionShopperNotFoundError"] | components["schemas"]["TransactionStoreProductsNotFoundError"] | components["schemas"]["TransactionItemModifiersNotFoundError"] | components["schemas"]["TransactionTotalsMismatchError"] | components["schemas"]["TransactionLineItemInvalidError"];
                 };
             };
             403: {

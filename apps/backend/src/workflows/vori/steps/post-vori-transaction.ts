@@ -6,6 +6,7 @@ import { VoriApiError } from "../../../modules/vori/lib/errors"
 import { TransactionBuildError } from "../../../modules/vori/lib/transactions"
 import type VoriModuleService from "../../../modules/vori/service"
 import type { BuiltTransaction } from "./build-vori-transaction"
+import type { GiftCardMoveResult } from "./move-vori-gift-cards"
 
 export type RecordStatus = "conflict" | "failed" | "recorded" | "skipped"
 
@@ -33,8 +34,8 @@ export type RecordResult = {
  *   - `conflict` — a 409. The transaction ID already exists in Vori with
  *     different contents, so this is settled, not transient: retrying the same
  *     divergent payload returns 409 forever.
- *   - `failed` — a 4xx or a payload we should not have built. Our bug to fix,
- *     not something a retry resolves.
+ *   - `failed` — a 4xx, a payload we should not have built, or a gift card that
+ *     refused to pay. Our bug to fix, not something a retry resolves.
  *
  * Only a 429, a 5xx or a transport error throws, and throwing is what makes
  * the workflow engine retry. The transaction ID is minted before the first
@@ -47,9 +48,20 @@ export const postVoriTransactionStep = createStep(
     maxRetries: 5,
     retryInterval: 15,
   },
-  async (input: BuiltTransaction, { container }) => {
+  async (input: BuiltTransaction & { redemption: GiftCardMoveResult }, { container }) => {
     const vori = container.resolve(VORI_MODULE) as VoriModuleService
     const logger = container.resolve(ContainerRegistrationKeys.LOGGER)
+
+    // The cards are moved before this step for exactly this reason: nothing has
+    // been sent yet, so refusing here leaves the books untouched rather than
+    // wrong.
+    if (input.redemption.status === "failed") {
+      return new StepResponse<RecordResult>({
+        detail: input.redemption.detail,
+        status: "failed",
+        transactionId: input.transactionId,
+      })
+    }
 
     const blocked = await vori.writeBlockedReason()
     if (blocked) {

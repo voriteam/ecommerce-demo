@@ -2,6 +2,7 @@ import { MedusaError, MedusaService } from "@medusajs/framework/utils"
 
 import { VoriSyncState } from "./models/vori-sync-state"
 import { createVoriClient, paginate, unwrap, type VoriClient, type VoriLogger } from "./lib/client"
+import { VoriApiError } from "./lib/errors"
 import type { VoriConfig } from "./lib/config"
 import type {
   VoriStoreDepartment,
@@ -9,6 +10,11 @@ import type {
   VoriStoreProductInventory,
   VoriTaxRate,
 } from "./lib/mapping"
+import type {
+  CreateGiftCardTransactionRequest,
+  GiftCard,
+  GiftCardTransaction,
+} from "./lib/gift-cards"
 import type { CreateTransactionRequest } from "./lib/transactions"
 import type { CreateRefundRequest, VoriTransaction } from "./lib/refunds"
 import { normalizePhone } from "./lib/phone"
@@ -212,10 +218,15 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
    * such as the ID of each gift card the sale issued.
    */
   async createTransaction(request: CreateTransactionRequest): Promise<VoriTransaction> {
-    return unwrap(await this.client().POST("/v1/transactions", { body: request }), {
-      method: "POST",
-      path: "/v1/transactions",
-    }) as VoriTransaction
+    return unwrap(
+      await this.client().POST("/v1/transactions", {
+        // The request widens the generated tender enum with `gift_card`, which
+        // the published create schema does not carry yet. The cast goes when a
+        // regenerated client does.
+        body: request as never,
+      }),
+      { method: "POST", path: "/v1/transactions" },
+    ) as VoriTransaction
   }
 
   /**
@@ -281,6 +292,57 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
     )
 
     return list.data[0] ?? null
+  }
+
+  /**
+   * Matched exactly, not searched, and follows cards merged into the one now
+   * holding the balance - so a reissued card still finds its money.
+   */
+  async findGiftCardByBarcode(barcode: string): Promise<GiftCard | null> {
+    const trimmed = barcode.trim()
+    if (!trimmed) return null
+
+    const list = unwrap(
+      await this.client().GET("/v1/gift-cards", {
+        params: { query: { barcode: trimmed, limit: 1 } },
+      }),
+      { method: "GET", path: "/v1/gift-cards" },
+    )
+
+    return list.data[0] ?? null
+  }
+
+  async getGiftCard(id: string): Promise<GiftCard | null> {
+    try {
+      return unwrap(
+        await this.client().GET("/v1/gift-cards/{id}", {
+          params: { path: { id } },
+        }),
+        { method: "GET", path: `/v1/gift-cards/${id}` },
+      )
+    } catch (error) {
+      if (error instanceof VoriApiError && error.status === 404) return null
+      throw error
+    }
+  }
+
+  /**
+   * Moves money on a gift card. Throws VoriApiError on refusal.
+   *
+   * Vori returns the entry already written under a key it has seen rather than
+   * writing a second, so a retried sale cannot spend a card twice.
+   */
+  async createGiftCardTransaction(
+    id: string,
+    request: CreateGiftCardTransactionRequest,
+  ): Promise<GiftCardTransaction> {
+    return unwrap(
+      await this.client().POST("/v1/gift-cards/{id}/transactions", {
+        params: { path: { id } },
+        body: request,
+      }),
+      { method: "POST", path: `/v1/gift-cards/${id}/transactions` },
+    )
   }
 
   /**

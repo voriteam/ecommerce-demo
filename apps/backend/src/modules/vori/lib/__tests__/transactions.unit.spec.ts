@@ -4,6 +4,7 @@ import {
   buildTransaction,
   toVoriCardBrand,
   TransactionBuildError,
+  type VoriGiftCardPayment,
   type VoriGiftCardSale,
   type VoriOrderLine,
   type VoriOrderSnapshot,
@@ -48,8 +49,10 @@ const order = (
   lines: VoriOrderLine[],
   paidCents: null | number,
   giftCards: VoriGiftCardSale[] = [],
+  giftCardPayments: VoriGiftCardPayment[] = [],
 ): VoriOrderSnapshot => ({
   createdAt: "2026-08-19T05:00:00.000Z",
+  giftCardPayments,
   giftCards,
   id: "order_01ABC",
   lines,
@@ -176,7 +179,7 @@ describe("a transaction", () => {
     // The classic off-by-tax: charging 24.54 and booking 25.57 would leave the
     // shopper's statement disagreeing with the grocer's books.
     expect(() => record(order([milk, bananas, beer], 2454))).toThrow(
-      /was charged 24.54 but its recorded items total 25.57/,
+      /was paid 24.54 but its recorded items total 25.57/,
     )
   })
 
@@ -192,7 +195,7 @@ describe("a transaction", () => {
     // The worst outcome here is a silent mismatch between the shopper's card
     // statement and the grocer's books, so this fails loudly instead.
     expect(() => record(order([milk, bananas], 1300))).toThrow(
-      /was charged 13.00 but its recorded items total 12.05/,
+      /was paid 13.00 but its recorded items total 12.05/,
     )
   })
 
@@ -344,5 +347,58 @@ describe("a transaction with gift cards", () => {
   it("leaves gift_card_sales off an ordinary sale entirely", () => {
     // An order with no cards must be byte-for-byte the request it was before.
     expect(record(order([milk], 998))).not.toHaveProperty("gift_card_sales")
+  })
+})
+
+describe("a transaction paid with a gift card", () => {
+  const spentCard: VoriGiftCardPayment = {
+    amountCents: 1000,
+    giftCardId: "01a01879-1111-7000-8000-000000000001",
+  }
+
+  it("splits the basket between the card and the gift card", () => {
+    // Milk 9.98 + bananas 2.07 = 12.05, of which a gift card covers 10.00.
+    const built = record(order([milk, bananas], 205, [], [spentCard]))
+
+    expect(built.total).toBe("12.05")
+    expect(built.payments).toEqual([
+      {
+        amount: "2.05",
+        external_transaction_id: "stripe:pi_123",
+        payment_type: "credit",
+      },
+      {
+        amount: "10.00",
+        external_transaction_id: `01a01879-0000-7000-8000-000000000000:${spentCard.giftCardId}`,
+        gift_card_id: spentCard.giftCardId,
+        payment_type: "gift_card",
+      },
+    ])
+  })
+
+  it("charges no card when the gift card covers the basket outright", () => {
+    const built = record(order([bananas], 0, [], [{ ...spentCard, amountCents: 207 }]))
+
+    expect(built.total).toBe("2.07")
+    expect(built.payments).toEqual([
+      {
+        amount: "2.07",
+        external_transaction_id: `01a01879-0000-7000-8000-000000000000:${spentCard.giftCardId}`,
+        gift_card_id: spentCard.giftCardId,
+        payment_type: "gift_card",
+      },
+    ])
+  })
+
+  it("counts the gift card as money paid when reconciling", () => {
+    // Without the gift card the card looks 10.00 short.
+    expect(() => record(order([milk, bananas], 205, [], [spentCard]))).not.toThrow()
+    expect(() => record(order([milk, bananas], 205))).toThrow(TransactionBuildError)
+  })
+
+  it("refuses a gift card that paid nothing", () => {
+    expect(() => record(order([bananas], 207, [], [{ ...spentCard, amountCents: 0 }]))).toThrow(
+      TransactionBuildError,
+    )
   })
 })

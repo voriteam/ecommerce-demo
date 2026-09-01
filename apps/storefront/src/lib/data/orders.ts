@@ -19,7 +19,7 @@ export const retrieveOrder = async (id: string) => {
       method: "GET",
       query: {
         fields:
-          "*payment_collections.payments,*items,*items.metadata,*items.variant,*items.product,+metadata",
+          "*payment_collections.payments,*items,*items.metadata,*items.variant,*items.product,*credit_lines,+credit_line_total,+metadata",
       },
       headers,
       next,

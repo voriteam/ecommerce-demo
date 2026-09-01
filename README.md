@@ -177,9 +177,9 @@ A few behaviours are worth knowing about, because each of them is a decision rat
 
 ## Recording a sale
 
-Completing a checkout records a transaction against the store: the line items, a card tender and the
-payment reference. **Writes are off by default.** Out of the box the store builds the whole request
-and stores it on the order without sending it, so the demo is safe to point at any store.
+Completing a checkout records a transaction against the store: the line items, how it was paid for
+and the payment reference. **Writes are off by default.** Out of the box the store builds the whole
+request and stores it on the order without sending it, so the demo is safe to point at any store.
 
 To actually write, in `apps/backend/.env`:
 
@@ -243,6 +243,36 @@ Recording the sale rides the same write path and the same gate as any other — 
 `recorded` / `skipped` / `conflict` / `failed` landing on the order the same way. Once it is
 recorded Vori issues the card and returns its ID, and the order confirmation shows it, so you can see
 the card was really created.
+
+## Paying with a gift card
+
+A shopper can spend a Vori gift card at checkout. They enter the number printed on the card - the
+barcode, or the card's ID - and the store reads the balance from the grocer's own records and shows
+it before anything is charged. A card that matches nothing, one the grocer has deactivated and one
+with nothing left on it are each turned down there and then, rather than at the end of checkout.
+
+A card that covers the basket pays for all of it, and no payment method is asked for at all: the
+order is placed without a card being charged. A card that does not cover it pays what it can and an
+ordinary payment takes the rest, so a few dollars left on a card are still spendable. More than one
+card can go on the same order, each taking what is left after the one before.
+
+The card rides on the basket as a credit line rather than a payment method. That is what makes the
+split work: a credit line comes off what is still owed without touching the subtotal or the tax, so
+the sale is still recorded at full price with the card shown as its own tender. Medusa charges the
+remainder, and the transaction's payments add up to the total the way Vori requires.
+
+The money comes off the card when the sale reaches the grocer's books, and before the sale is sent
+rather than after. Vori checks the balance under a lock on the card, so a card spent down elsewhere
+between checkout and recording is refused - and because nothing has been sent yet, the sale is
+marked `failed` and the books are left untouched rather than showing a payment that never happened.
+Every movement is written under a key derived from the transaction, so however many times a sale is
+retried the card is only ever spent once.
+
+Cancelling the order puts the balance back, once the reversal itself has been accepted. A sale Vori
+rejects outright also returns the money, since it bought nothing.
+
+Writes are off by default here as everywhere else. With `VORI_WRITE_ENABLED=false` the balance is
+still read and the whole sale is still built and stored on the order, and no balance moves.
 
 ## Tax
 
