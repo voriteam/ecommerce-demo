@@ -15,6 +15,7 @@ import {
   createTaxRegionsWorkflow,
   linkSalesChannelsToApiKeyWorkflow,
   linkSalesChannelsToStockLocationWorkflow,
+  updateProductsWorkflow,
   updateRegionsWorkflow,
   updateStoresWorkflow,
 } from "@medusajs/medusa/core-flows"
@@ -29,6 +30,10 @@ const GIFT_CARD_OPTION = "Denomination"
 // product behind it, so unlike the catalog its price is set here rather than
 // mirrored from Vori.
 const GIFT_CARD_DENOMINATIONS = [25, 50, 100]
+// A designed card image shipped in the storefront's public folder, referenced by
+// a root-relative URL so it resolves against the storefront wherever it runs
+// rather than baking in a host.
+const GIFT_CARD_IMAGE = "/gift-card.png"
 
 /**
  * Bootstraps an empty US grocery store.
@@ -295,6 +300,8 @@ export default async function initial_data_seed({ container }: { container: Medu
             status: "published",
             description:
               "A Vori Market gift card. Choose an amount, and the recipient gets a card they can spend in store.",
+            thumbnail: GIFT_CARD_IMAGE,
+            images: [{ url: GIFT_CARD_IMAGE }],
             options: [
               {
                 title: GIFT_CARD_OPTION,
@@ -315,6 +322,14 @@ export default async function initial_data_seed({ container }: { container: Medu
             })),
           },
         ],
+      },
+    })
+  } else {
+    // Keep the shipped card image in step with the code on a re-seed.
+    await updateProductsWorkflow(container).run({
+      input: {
+        selector: { id: existingGiftCard.id },
+        update: { thumbnail: GIFT_CARD_IMAGE, images: [{ url: GIFT_CARD_IMAGE }] },
       },
     })
   }
