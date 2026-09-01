@@ -201,6 +201,28 @@ re-adds every line and rejects a transaction whose lines do not sum to what was 
 order write refuses to send one that does not reconcile rather than letting a shopper's card
 statement disagree with the grocer's books.
 
+## Selling gift cards
+
+The store sells gift cards too, and a gift card sale is not an ordinary line. Vori has no product
+behind a gift card, so it is never a line item — it rides alongside the line items on the same
+transaction as a gift card sale. The demo ships one "Vori Gift Card" product with a few fixed
+denominations, bought through the same cart and checkout as anything else, and a basket holding
+nothing but a gift card produces an order with no line items at all.
+
+The money follows Vori's rules: a card's face value adds to the transaction total but never to its
+tax, because gift cards are not taxed. Everything else reconciles as usual, so the amount charged
+still has to equal the line totals plus the card amounts.
+
+The card's barcode is generated in the browser as a Code 128 when the card goes into the cart and
+sent as its `physical_barcode` — Vori stores the barcode the seller supplies rather than minting one.
+The recipient's phone number is collected at checkout: it is the number Vori texts the card to, and
+it identifies the loyalty account the card belongs to.
+
+Recording the sale rides the same write path and the same gate as any other — off by default, with
+`recorded` / `skipped` / `conflict` / `failed` landing on the order the same way. Once it is
+recorded Vori issues the card and returns its ID, and the order confirmation shows it, so you can see
+the card was really created.
+
 ## Tax
 
 Tax rates come from the store's own configuration, so beer rings up taxed and groceries do not.
