@@ -31,7 +31,15 @@ pnpm dev
 
 `pnpm setup` starts the containers, creates the environment files, runs migrations, bootstraps an
 empty US store, creates the admin user and points the storefront at the backend. It is idempotent,
-so run it again whenever you want to be sure the database matches the code.
+so run it again after pulling, or whenever you want to be sure the database matches the code. The
+store bootstrap looks before it creates at every step, so a second run reconciles what has changed
+in the code rather than building a second store alongside the first.
+
+To re-run only that bootstrap, without the containers and the rest:
+
+```bash
+pnpm seed:store
+```
 
 ## The containers
 
@@ -208,6 +216,19 @@ behind a gift card, so it is never a line item — it rides alongside the line i
 transaction as a gift card sale. The demo ships one "Vori Gift Card" product with a few fixed
 denominations, bought through the same cart and checkout as anything else, and a basket holding
 nothing but a gift card produces an order with no line items at all.
+
+Because Vori has no product behind it, the card is not something `pnpm seed:catalog` can bring in.
+It comes from the store bootstrap instead, so it is already there on a store set up from scratch. On
+a store that predates it, put it on the shelf with:
+
+```bash
+pnpm seed:store
+```
+
+The amounts sold are `GIFT_CARD_DENOMINATIONS` in
+`apps/backend/src/migration-scripts/initial-data-seed.ts`, read when the card is first created. A
+re-seed refreshes the card's image but leaves an existing card's denominations and prices alone, so
+change what a store already sells from the admin.
 
 The money follows Vori's rules: a card's face value adds to the transaction total but never to its
 tax, because gift cards are not taxed. Everything else reconciles as usual, so the amount charged

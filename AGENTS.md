@@ -215,9 +215,19 @@ pnpm setup              # docker compose up, env files, migrate, seed the store,
 pnpm seed:catalog       # fill the shelves from a Vori store (needs VORI_API_KEY and VORI_STORE_ID)
 pnpm sync:inventory     # run one inventory poll, the same one the scheduled job runs
 pnpm record:order <id>  # send one order to Vori again
-pnpm seed:store         # re-run the store bootstrap; idempotent
+pnpm seed:store         # re-run the store bootstrap on its own; idempotent
 pnpm clear:locks        # release the sync locks after a killed run; stop the dev server first
 ```
+
+### The store bootstrap runs twice on a fresh database
+
+`apps/backend/src/migration-scripts/initial-data-seed.ts` sits in `src/migration-scripts`, so
+`medusa db:migrate` runs it - but records it by filename in `script_migrations` and skips it on
+every later migrate. Anything added to the bootstrap would therefore never reach a database that had
+already run it, so `pnpm setup` invokes the seed directly after migrating and `pnpm seed:store`
+invokes the same function. On a fresh database that means it runs once through the ledger and once
+directly. That is safe only because every step looks before it creates, which is a property the seed
+has to keep.
 
 ### Stale sync locks
 

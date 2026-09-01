@@ -32,8 +32,16 @@ fi
 step "Installing dependencies"
 pnpm install --frozen-lockfile
 
-step "Running migrations and seeding the store"
+step "Running migrations"
 pnpm --filter @vori-demo/backend exec medusa db:migrate
+
+# `db:migrate` runs the store bootstrap itself, but only the first time: it
+# records each migration script by filename and skips it forever after. Running
+# it directly is what lets a database created before a change pick that change
+# up. The seed looks before it creates at every step, so the second run on a
+# fresh database changes nothing.
+step "Seeding the store"
+pnpm --filter @vori-demo/backend exec medusa exec ./src/migration-scripts/initial-data-seed.ts
 
 step "Creating the local admin user"
 pnpm --filter @vori-demo/backend exec medusa user -e admin@example.com -p supersecret \
