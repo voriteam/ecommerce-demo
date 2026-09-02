@@ -1144,11 +1144,14 @@ export interface components {
             employee_id?: string;
             /** @description Idempotency key to avoid duplicate transactions. Only one transaction may exist with a given idempotency key. Subsequent requests with the same idempotency key will return the data persisted in the database. */
             idempotency_key: string;
-            /** @description ID of the checkout this transaction is tied to, from the transactions resource. Only a register sends one. */
+            /**
+             * Format: uuid
+             * @description ID of the order this transaction is tied to, from the transactions resource. Required when spending the card on an order, and rejected on an adjustment. The order does not have to be recorded yet: send the ID you will record it under.
+             */
             order_id?: string;
             /** @description ID of the store the transaction belongs to. Optional: name a store to attribute the adjustment to it, or omit it for one that is not tied to a store. */
             store_id?: string;
-            /** @description The kind of transaction. An API client may only send `manual_adjustment`; the other types are recorded at the point of sale. */
+            /** @description The kind of transaction. An API client may send `manual_adjustment` to correct a balance, or `order_payment` to spend the card on an order; the remaining types are recorded at the point of sale. */
             type: components["schemas"]["GiftCardTransactionType"];
         };
         CreateHouseAccountRequest: {
@@ -1605,11 +1608,16 @@ export interface components {
             completed_at?: string;
             /** @description Your payment processor's transaction reference. Stored exactly as provided so your systems can look it up later; it is never interpreted. */
             external_transaction_id: string;
+            /**
+             * Format: uuid
+             * @description ID of the gift card the payment was taken from. Required on a gift card payment, and rejected on any other tender. Recording the payment does not move the balance: spend it by recording an `order_payment` on the card, and send that transaction's ID as `external_transaction_id` so the two can be matched up.
+             */
+            gift_card_id?: string;
             /** @description How the transaction was paid. */
             payment_type: components["schemas"]["CreateTransactionPaymentType"];
         };
         /** @enum {string} */
-        CreateTransactionPaymentType: "check" | "credit" | "debit";
+        CreateTransactionPaymentType: "check" | "credit" | "debit" | "gift_card";
         /** @description A completed checkout to record against a store, with its products, payments, and totals. */
         CreateTransactionRequest: {
             /**
@@ -1954,7 +1962,7 @@ export interface components {
             idempotency_key: string;
             /**
              * Format: uuid
-             * @description ID of the checkout this transaction is tied to, from the transactions resource. Null when the transaction is not tied to a checkout.
+             * @description ID of the order this transaction is tied to, from the transactions resource. Null when the transaction is not tied to an order.
              */
             order_id: string | null;
             /** @description ID of the store where the transaction took place. Null for a transaction not tied to a store, such as a back-office adjustment. */
@@ -2876,6 +2884,14 @@ export interface components {
             /** @description ID of the associated GiftCardTransaction that funded the gift card. This value may be `null` if the sale was made while the POS was offline, and the transaction has not yet been back-filled. */
             gift_card_transaction_id: string | null;
         };
+        TransactionGiftCardsNotFoundError: {
+            /** @enum {string} */
+            error_code: "transaction_gift_cards_not_found";
+            error_details: components["schemas"]["TransactionGiftCardsNotFoundErrorDetails"];
+        };
+        TransactionGiftCardsNotFoundErrorDetails: {
+            gift_card_ids: string[];
+        };
         /** @description A coupon issued to the shopper by a transaction, with its code, benefit value, and the window in which it can be redeemed. */
         TransactionIssuedCoupon: {
             /** @description Unique identifier for the record. */
@@ -3284,6 +3300,17 @@ export interface components {
              */
             tip_amount: string;
         };
+        TransactionPaymentInvalidError: {
+            /** @enum {string} */
+            error_code: "transaction_invalid_payment";
+            error_details: components["schemas"]["TransactionPaymentInvalidErrorDetails"];
+        };
+        TransactionPaymentInvalidErrorDetails: {
+            index: number;
+            reason: components["schemas"]["TransactionPaymentInvalidReason"];
+        };
+        /** @enum {string} */
+        TransactionPaymentInvalidReason: "card_details_not_allowed" | "gift_card_id_not_allowed" | "gift_card_id_required";
         /** @description A reversal of a payment collected on a transaction, with the amount requested, the amount released, and how the payment was tendered. */
         TransactionPaymentReversal: {
             /** @description Unique identifier for the record. */
@@ -6142,7 +6169,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidStoreError"] | components["schemas"]["TransactionMissingItemsError"] | components["schemas"]["GiftCardSaleIdentifierRequiredError"] | components["schemas"]["TransactionLaneNotFoundError"] | components["schemas"]["TransactionLaneStoreMismatchError"] | components["schemas"]["TransactionLaneNotVirtualError"] | components["schemas"]["TransactionEmployeeNotFoundError"] | components["schemas"]["TransactionEmployeeNotVirtualError"] | components["schemas"]["TransactionShopperNotFoundError"] | components["schemas"]["TransactionStoreProductsNotFoundError"] | components["schemas"]["TransactionItemModifiersNotFoundError"] | components["schemas"]["TransactionTotalsMismatchError"] | components["schemas"]["TransactionLineItemInvalidError"];
+                    "application/json": components["schemas"]["InvalidStoreError"] | components["schemas"]["TransactionMissingItemsError"] | components["schemas"]["GiftCardSaleIdentifierRequiredError"] | components["schemas"]["TransactionLaneNotFoundError"] | components["schemas"]["TransactionLaneStoreMismatchError"] | components["schemas"]["TransactionLaneNotVirtualError"] | components["schemas"]["TransactionEmployeeNotFoundError"] | components["schemas"]["TransactionEmployeeNotVirtualError"] | components["schemas"]["TransactionShopperNotFoundError"] | components["schemas"]["TransactionStoreProductsNotFoundError"] | components["schemas"]["TransactionItemModifiersNotFoundError"] | components["schemas"]["TransactionTotalsMismatchError"] | components["schemas"]["TransactionLineItemInvalidError"] | components["schemas"]["TransactionPaymentInvalidError"] | components["schemas"]["TransactionGiftCardsNotFoundError"];
                 };
             };
             403: {

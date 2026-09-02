@@ -218,15 +218,10 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
    * such as the ID of each gift card the sale issued.
    */
   async createTransaction(request: CreateTransactionRequest): Promise<VoriTransaction> {
-    return unwrap(
-      await this.client().POST("/v1/transactions", {
-        // The request widens the generated tender enum with `gift_card`, which
-        // the published create schema does not carry yet. The cast goes when a
-        // regenerated client does.
-        body: request as never,
-      }),
-      { method: "POST", path: "/v1/transactions" },
-    ) as VoriTransaction
+    return unwrap(await this.client().POST("/v1/transactions", { body: request }), {
+      method: "POST",
+      path: "/v1/transactions",
+    }) as VoriTransaction
   }
 
   /**

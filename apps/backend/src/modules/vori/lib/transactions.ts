@@ -4,27 +4,9 @@ import { giftCardRedemptionKey } from "./gift-cards"
 import { centsToDecimal, extendCents, sumCents } from "./money"
 import { normalizePhone } from "./phone"
 
-/**
- * Widens the published create enum, which is `check | credit | debit`, to the
- * value Vori already stores and reads back. Regenerating the client subsumes it.
- */
-export type CreateTransactionPaymentType =
-  | components["schemas"]["CreateTransactionPaymentType"]
-  | "gift_card"
-
-export type CreateTransactionPayment = Omit<
-  components["schemas"]["CreateTransactionPayment"],
-  "payment_type"
-> & {
-  /** Required on a gift card payment, and rejected on any other tender. */
-  gift_card_id?: string
-  payment_type: CreateTransactionPaymentType
-}
-
-export type CreateTransactionRequest = Omit<
-  components["schemas"]["CreateTransactionRequest"],
-  "payments"
-> & { payments: CreateTransactionPayment[] }
+export type CreateTransactionPaymentType = components["schemas"]["CreateTransactionPaymentType"]
+export type CreateTransactionPayment = components["schemas"]["CreateTransactionPayment"]
+export type CreateTransactionRequest = components["schemas"]["CreateTransactionRequest"]
 
 export type CreateTransactionGiftCardSale = components["schemas"]["CreateTransactionGiftCardSale"]
 export type CreateTransactionLineItem = components["schemas"]["CreateTransactionLineItem"]
