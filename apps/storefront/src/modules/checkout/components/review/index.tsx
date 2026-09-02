@@ -14,10 +14,15 @@ const Review = ({ cart }: { cart: HttpTypes.StoreCart }) => {
 
   const paidByGiftcard = coveredByGiftCards(cart)
 
+  // A payment collection is not enough: applying a gift card drops the session
+  // priced against the old total, leaving a collection with nothing to
+  // authorise. Only a live session, or cards covering the basket, is ready.
+  const activeSession = cart.payment_collection?.payment_sessions?.length
+
   const previousStepsCompleted =
     cart.shipping_address &&
     (cart.shipping_methods?.length ?? 0) > 0 &&
-    (cart.payment_collection || paidByGiftcard)
+    (activeSession || paidByGiftcard)
 
   return (
     <div className="bg-white">

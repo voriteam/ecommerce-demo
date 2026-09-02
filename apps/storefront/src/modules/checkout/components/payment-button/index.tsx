@@ -118,10 +118,11 @@ const StripePaymentButton = ({
             (pi && pi.status === "requires_capture") ||
             (pi && pi.status === "succeeded")
           ) {
-            onPaymentCompleted()
+            return onPaymentCompleted()
           }
 
           setErrorMessage(error.message || null)
+          setSubmitting(false)
           return
         }
 
@@ -132,7 +133,13 @@ const StripePaymentButton = ({
           return onPaymentCompleted()
         }
 
-        return
+        // Every path that does not place the order has to give the button back,
+        // or it spins for good.
+        setSubmitting(false)
+      })
+      .catch((error) => {
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+        setSubmitting(false)
       })
   }
 
