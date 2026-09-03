@@ -1,4 +1,8 @@
 "use client"
+import { coveredByGiftCards } from "@lib/util/gift-card-payment"
+import GiftCardPayment from "@modules/checkout/components/gift-card-payment"
+import { giftCardLabel, giftCardsOn } from "@lib/util/gift-card-payment"
+import { convertToLocale } from "@lib/util/money"
 import { RadioGroup } from "@headlessui/react"
 import { isStripeLike, paymentInfoMap } from "@lib/constants"
 import { initiatePaymentSession } from "@lib/data/cart"
@@ -54,9 +58,8 @@ const Payment = ({
     }
   }
 
-  const paidByGiftcard = !!(
-    (cart as unknown as Record<string, unknown>)?.gift_cards && ((cart as unknown as Record<string, unknown>)?.gift_cards as unknown[])?.length > 0 && cart?.total === 0
-  )
+  const paidByGiftcard = coveredByGiftCards(cart)
+  const appliedGiftCards = giftCardsOn(cart)
 
   const paymentReady =
     (activeSession && (cart?.shipping_methods?.length ?? 0) !== 0) || paidByGiftcard
@@ -80,6 +83,14 @@ const Payment = ({
   const handleSubmit = async () => {
     setIsLoading(true)
     try {
+      // Nothing is left to charge, so there is no session to open. Asking for
+      // one sends an empty provider and the payment module refuses it.
+      if (paidByGiftcard) {
+        return router.push(pathname + "?" + createQueryString("step", "review"), {
+          scroll: false,
+        })
+      }
+
       const shouldInputCard =
         isStripeLike(selectedPaymentMethod) && !activeSession
 
@@ -141,6 +152,10 @@ const Payment = ({
       </div>
       <div>
         <div className={isOpen ? "block" : "hidden"}>
+          {/* Above the methods, because a card that covers the basket removes
+              the need to choose one at all. */}
+          <GiftCardPayment cart={cart} />
+
           {!paidByGiftcard && availablePaymentMethods?.length && (
             <>
               <RadioGroup
@@ -208,6 +223,23 @@ const Payment = ({
         </div>
 
         <div className={isOpen ? "hidden" : "block"}>
+          {/* A gift card can pay alongside a card, so it is summarised on its
+              own rather than as the order's one payment method. */}
+          {appliedGiftCards.length > 0 && (
+            <div className="flex flex-col mb-4" data-testid="gift-card-summary">
+              <Text className="txt-medium-plus text-ui-fg-base mb-1">Gift card</Text>
+              {appliedGiftCards.map((line) => (
+                <Text key={line.id} className="txt-medium text-ui-fg-subtle">
+                  {convertToLocale({
+                    amount: line.amount,
+                    currency_code: cart.currency_code,
+                  })}{" "}
+                  from card {giftCardLabel(line)}
+                </Text>
+              ))}
+            </div>
+          )}
+
           {cart && paymentReady && activeSession ? (
             <div className="flex items-start gap-x-1 w-full">
               <div className="flex flex-col w-1/3">
@@ -242,18 +274,6 @@ const Payment = ({
                   </Text>
                 </div>
               </div>
-            </div>
-          ) : paidByGiftcard ? (
-            <div className="flex flex-col w-1/3">
-              <Text className="txt-medium-plus text-ui-fg-base mb-1">
-                Payment method
-              </Text>
-              <Text
-                className="txt-medium text-ui-fg-subtle"
-                data-testid="payment-method-summary"
-              >
-                Gift card
-              </Text>
             </div>
           ) : null}
         </div>

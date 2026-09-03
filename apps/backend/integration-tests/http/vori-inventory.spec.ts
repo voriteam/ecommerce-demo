@@ -323,7 +323,9 @@ medusaIntegrationTestRunner({
         expect(products.find((p: any) => p.external_id === "900003")).toMatchObject({
           status: "draft",
         })
-        expect(products.filter((p: any) => p.status === "published")).toHaveLength(4)
+        expect(
+          products.filter((p: any) => p.status === "published" && p.external_id),
+        ).toHaveLength(4)
       })
 
       it("puts a product back on sale when it returns", async () => {
@@ -382,9 +384,11 @@ medusaIntegrationTestRunner({
         const query = getContainer().resolve("query")
         const { data: products } = await query.graph({
           entity: "product",
-          fields: ["status"],
+          fields: ["external_id", "status"],
         })
-        expect(products.filter((p: any) => p.status === "published")).toHaveLength(5)
+        expect(
+          products.filter((p: any) => p.status === "published" && p.external_id),
+        ).toHaveLength(5)
       })
     })
 

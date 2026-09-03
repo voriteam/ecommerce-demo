@@ -6,9 +6,13 @@ import { VORI_MODULE } from "../../../modules/vori"
 import { decimalToCentsRounded } from "../../../modules/vori/lib/money"
 import { buildFullRefund, RefundBuildError } from "../../../modules/vori/lib/refunds"
 import type { CreateRefundRequest } from "../../../modules/vori/lib/refunds"
+import type { VoriGiftCardPayment } from "../../../modules/vori/lib/transactions"
 import type VoriModuleService from "../../../modules/vori/service"
+import { giftCardPaymentsFrom } from "../gift-card-credit-lines"
 
 export type BuiltRefund = {
+  /** Cards to put money back on. */
+  giftCardPayments: VoriGiftCardPayment[]
   orderId: string
   /** Null when there is nothing to send; `reason` says why. */
   request: CreateRefundRequest | null
@@ -45,6 +49,7 @@ export const buildVoriRefundStep = createStep(
         "payment_collections.payments.amount",
         "payment_collections.payments.captured_at",
         "payment_collections.payments.refunds.*",
+        "credit_lines.*",
       ],
       filters: { id: input.orderId },
     })
@@ -61,35 +66,48 @@ export const buildVoriRefundStep = createStep(
 
     const refundId = uuidv7()
 
+    const giftCardPayments = giftCardPaymentsFrom(order.credit_lines)
+
     const nothingToSend = (reason: string): BuiltRefund => {
       logger.info(`vori: not reversing order ${order.id} — ${reason}`)
-      return { orderId: order.id, reason, refundId, request: null, transactionId: null }
+      return {
+        giftCardPayments: [],
+        orderId: order.id,
+        reason,
+        refundId,
+        request: null,
+        transactionId: null,
+      }
     }
 
-    if (!payment) {
+    // A basket a gift card covered outright carries no payment at all, and the
+    // money to give back is on the card.
+    if (!payment && giftCardPayments.length === 0) {
       return new StepResponse<BuiltRefund>(
         nothingToSend("the order has no payment, so there is nothing to give back"),
       )
     }
 
-    if (!payment.captured_at) {
-      return new StepResponse<BuiltRefund>(
-        nothingToSend("the payment was never captured, so no money changed hands"),
-      )
-    }
+    if (payment) {
+      if (!payment.captured_at) {
+        return new StepResponse<BuiltRefund>(
+          nothingToSend("the payment was never captured, so no money changed hands"),
+        )
+      }
 
-    const paidCents = decimalToCentsRounded(String(payment.amount)) ?? 0
-    const refundedCents = ((payment.refunds ?? []) as any[]).reduce(
-      (total, refund) => total + (decimalToCentsRounded(String(refund.amount)) ?? 0),
-      0,
-    )
-
-    if (refundedCents < paidCents) {
-      return new StepResponse<BuiltRefund>(
-        nothingToSend(
-          "only part of the payment was given back, and a reversal has to name the lines it covers",
-        ),
+      const paidCents = decimalToCentsRounded(String(payment.amount)) ?? 0
+      const refundedCents = ((payment.refunds ?? []) as any[]).reduce(
+        (total, refund) => total + (decimalToCentsRounded(String(refund.amount)) ?? 0),
+        0,
       )
+
+      if (refundedCents < paidCents) {
+        return new StepResponse<BuiltRefund>(
+          nothingToSend(
+            "only part of the payment was given back, and a reversal has to name the lines it covers",
+          ),
+        )
+      }
     }
 
     const transaction = await vori.findTransactionByExternalId(order.id)
@@ -122,6 +140,7 @@ export const buildVoriRefundStep = createStep(
       })
 
       return new StepResponse<BuiltRefund>({
+        giftCardPayments,
         orderId: order.id,
         refundId,
         request,

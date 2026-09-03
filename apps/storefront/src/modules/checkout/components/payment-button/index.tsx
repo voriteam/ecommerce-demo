@@ -2,6 +2,7 @@
 
 import { isManual, isStripeLike } from "@lib/constants"
 import { placeOrder } from "@lib/data/cart"
+import { coveredByGiftCards } from "@lib/util/gift-card-payment"
 import { HttpTypes } from "@medusajs/types"
 import { Button } from "@modules/common/components/ui"
 import { useElements, useStripe } from "@stripe/react-stripe-js"
@@ -27,6 +28,9 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
   const paymentSession = cart.payment_collection?.payment_sessions?.[0]
 
   switch (true) {
+    // No payment session to authorise, so nothing to wait for or select.
+    case coveredByGiftCards(cart):
+      return <GiftCardPaymentButton notReady={notReady} data-testid={dataTestId} />
     case isStripeLike(paymentSession?.provider_id):
       return (
         <StripePaymentButton
@@ -114,10 +118,11 @@ const StripePaymentButton = ({
             (pi && pi.status === "requires_capture") ||
             (pi && pi.status === "succeeded")
           ) {
-            onPaymentCompleted()
+            return onPaymentCompleted()
           }
 
           setErrorMessage(error.message || null)
+          setSubmitting(false)
           return
         }
 
@@ -128,7 +133,13 @@ const StripePaymentButton = ({
           return onPaymentCompleted()
         }
 
-        return
+        // Every path that does not place the order has to give the button back,
+        // or it spins for good.
+        setSubmitting(false)
+      })
+      .catch((error) => {
+        setErrorMessage(error instanceof Error ? error.message : String(error))
+        setSubmitting(false)
       })
   }
 
@@ -146,6 +157,45 @@ const StripePaymentButton = ({
       <ErrorMessage
         error={errorMessage}
         data-testid="stripe-payment-error-message"
+      />
+    </>
+  )
+}
+
+const GiftCardPaymentButton = ({
+  notReady,
+  "data-testid": dataTestId,
+}: {
+  notReady: boolean
+  "data-testid"?: string
+}) => {
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const handlePayment = () => {
+    setSubmitting(true)
+    setErrorMessage(null)
+
+    placeOrder().catch((error: Error) => {
+      setErrorMessage(error.message)
+      setSubmitting(false)
+    })
+  }
+
+  return (
+    <>
+      <Button
+        disabled={notReady}
+        isLoading={submitting}
+        onClick={handlePayment}
+        size="large"
+        data-testid={dataTestId}
+      >
+        Place order
+      </Button>
+      <ErrorMessage
+        error={errorMessage}
+        data-testid="gift-card-payment-error-message"
       />
     </>
   )

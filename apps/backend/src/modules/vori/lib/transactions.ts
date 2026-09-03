@@ -1,33 +1,15 @@
 import type { components } from "./generated/schema"
 
+import { giftCardRedemptionKey } from "./gift-cards"
 import { centsToDecimal, extendCents, sumCents } from "./money"
 import { normalizePhone } from "./phone"
 
-/**
- * A gift card sold on a transaction.
- *
- * This is the request-side shape, which the generated schema does not yet carry:
- * Vori's published OpenAPI description gains `gift_card_sales` on the create
- * request once the gift cards API ships, and `pnpm generate:client` will then
- * regenerate `CreateTransactionRequest` to include it. Defining it here in one
- * place - with the field names the API expects - is what keeps the whole
- * integration ready for that spec without reaching into generated code. The
- * response side already has its counterpart, `TransactionGiftCardSale`.
- */
-export type CreateTransactionGiftCardSale = {
-  /** Amount loaded onto the card, as a decimal string. */
-  amount: string
-  /** Barcode printed on the physical card. */
-  physical_barcode?: null | string
-  /** E.164 phone of the shopper who will own the card. */
-  recipient_phone_number?: null | string
-}
-
-export type CreateTransactionRequest = components["schemas"]["CreateTransactionRequest"] & {
-  gift_card_sales?: CreateTransactionGiftCardSale[]
-}
-export type CreateTransactionLineItem = components["schemas"]["CreateTransactionLineItem"]
+export type CreateTransactionPaymentType = components["schemas"]["CreateTransactionPaymentType"]
 export type CreateTransactionPayment = components["schemas"]["CreateTransactionPayment"]
+export type CreateTransactionRequest = components["schemas"]["CreateTransactionRequest"]
+
+export type CreateTransactionGiftCardSale = components["schemas"]["CreateTransactionGiftCardSale"]
+export type CreateTransactionLineItem = components["schemas"]["CreateTransactionLineItem"]
 export type CreateTransactionCardBrand = components["schemas"]["CreateTransactionCardBrand"]
 
 /**
@@ -69,14 +51,28 @@ export type VoriGiftCardSale = {
   title: string
 }
 
+/**
+ * A gift card spent on an order.
+ *
+ * Only the card is carried: its ledger entry is keyed off the transaction, so
+ * the reference is derived rather than stored.
+ */
+export type VoriGiftCardPayment = {
+  /** Taken off the card, in cents. Positive: this is money paid, not the debit. */
+  amountCents: number
+  giftCardId: string
+}
+
 export type VoriOrderSnapshot = {
   /** ISO 8601. Becomes the transaction's `completed_at`. */
   createdAt: string
   /** Gift cards sold on the order. Empty for an order with no cards. */
   giftCards: VoriGiftCardSale[]
+  /** Spent on the order, as opposed to `giftCards`, which were sold on it. */
+  giftCardPayments: VoriGiftCardPayment[]
   id: string
   lines: VoriOrderLine[]
-  /** What the shopper was actually charged, in cents. Null when unknown. */
+  /** Charged to the card, in cents. Zero when gift cards covered the basket. */
   paidCents: null | number
 }
 
@@ -184,6 +180,32 @@ export const buildGiftCardSale = (sale: VoriGiftCardSale): CreateTransactionGift
 }
 
 /**
+ * One spent gift card as a Vori payment.
+ *
+ * `external_transaction_id` is the key the ledger entry is written under, not
+ * the ID Vori assigns it. The key is known before the entry exists, so the whole
+ * request can be built with writes switched off and rebuilt byte for byte on a
+ * retry.
+ */
+export const buildGiftCardPayment = (
+  payment: VoriGiftCardPayment,
+  transactionId: string,
+): CreateTransactionPayment => {
+  if (!Number.isInteger(payment.amountCents) || payment.amountCents <= 0) {
+    throw new TransactionBuildError(
+      `Gift card ${payment.giftCardId} paid ${payment.amountCents}, which is not a positive whole number of cents.`,
+    )
+  }
+
+  return {
+    amount: centsToDecimal(payment.amountCents),
+    external_transaction_id: giftCardRedemptionKey(transactionId, payment.giftCardId),
+    gift_card_id: payment.giftCardId,
+    payment_type: "gift_card",
+  }
+}
+
+/**
  * A completed order as the transaction Vori should record.
  *
  * Vori re-adds every line and rejects the transaction unless the line totals
@@ -201,7 +223,8 @@ export const buildTransaction = (args: {
   cardBrand?: null | string
   cardLast4?: null | string
   order: VoriOrderSnapshot
-  paymentReference: string
+  /** Absent only when gift cards covered the basket and no card was charged. */
+  paymentReference?: null | string
   /** The loyalty account this sale earns points for, when there is one. */
   shopperId?: null | string
   storeId: string
@@ -233,15 +256,16 @@ export const buildTransaction = (args: {
   const totalCents = sumCents(lineTotalsCents) + giftCardTotalCents
   const taxTotalCents = sumCents(lineTaxesCents)
 
-  // The paid amount is what the card was actually charged. If our line
-  // arithmetic disagrees with it, Vori would reject the transaction anyway —
-  // and a silent mismatch between what the shopper paid and what the store's
-  // books say is the worst possible outcome here.
-  if (typeof order.paidCents === "number" && order.paidCents !== totalCents) {
-    const drift = Math.abs(order.paidCents - totalCents)
+  const giftCardPaidCents = sumCents(order.giftCardPayments.map((card) => card.amountCents))
+
+  // A silent mismatch between what the shopper paid and what the store's books
+  // say is the worst outcome here, so it fails loudly instead.
+  if (typeof order.paidCents === "number" && order.paidCents + giftCardPaidCents !== totalCents) {
+    const totalPaidCents = order.paidCents + giftCardPaidCents
+    const drift = Math.abs(totalPaidCents - totalCents)
 
     throw new TransactionBuildError(
-      `Order ${order.id} was charged ${centsToDecimal(order.paidCents)} but its recorded items total ` +
+      `Order ${order.id} was paid ${centsToDecimal(totalPaidCents)} but its recorded items total ` +
         `${centsToDecimal(totalCents)}. Refusing to record a transaction that does not reconcile.` +
         // Vori rounds tax per line; a checkout that rounds the order's tax as
         // a whole lands a penny or two away on a basket of taxed lines.
@@ -251,15 +275,36 @@ export const buildTransaction = (args: {
     )
   }
 
-  const payment: CreateTransactionPayment = {
-    amount: centsToDecimal(totalCents),
-    external_transaction_id: paymentReference,
-    // Card payments are recorded as the real tender they are. There is no
-    // "external" tender type, by design: the store's books should show a card
-    // sale, not an unclassified one.
-    payment_type: "credit",
-    ...(toVoriCardBrand(cardBrand) ? { card_brand: toVoriCardBrand(cardBrand) } : {}),
-    ...(cardLast4 ? { account_number_last4: cardLast4 } : {}),
+  const payments: CreateTransactionPayment[] = []
+  const cardPaidCents = order.paidCents ?? totalCents - giftCardPaidCents
+
+  // Vori rejects a payment of zero, and a basket gift cards covered outright
+  // charges no card at all.
+  if (cardPaidCents > 0) {
+    if (!paymentReference) {
+      throw new TransactionBuildError(
+        `Order ${order.id} was charged ${centsToDecimal(cardPaidCents)} with no payment to record it against.`,
+      )
+    }
+
+    payments.push({
+      amount: centsToDecimal(cardPaidCents),
+      external_transaction_id: paymentReference,
+      // Card payments are recorded as the real tender they are. There is no
+      // "external" tender type, by design: the store's books should show a card
+      // sale, not an unclassified one.
+      payment_type: "credit",
+      ...(toVoriCardBrand(cardBrand) ? { card_brand: toVoriCardBrand(cardBrand) } : {}),
+      ...(cardLast4 ? { account_number_last4: cardLast4 } : {}),
+    })
+  }
+
+  for (const giftCard of order.giftCardPayments) {
+    payments.push(buildGiftCardPayment(giftCard, transactionId))
+  }
+
+  if (payments.length === 0) {
+    throw new TransactionBuildError(`Order ${order.id} has no payments to record.`)
   }
 
   return {
@@ -278,7 +323,7 @@ export const buildTransaction = (args: {
       order_id: order.id,
       source: "vori-ecommerce-demo",
     },
-    payments: [payment],
+    payments,
     // Links the sale to a loyalty account so it earns points. Left off for a
     // shopper we could not identify, which records an anonymous sale rather
     // than crediting the wrong person.
