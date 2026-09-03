@@ -21,7 +21,7 @@
     "test:integration:modules": "TEST_TYPE=integration:modules NODE_OPTIONS=--experimental-vm-modules jest --silent=false --runInBand --forceExit",
     "test:unit": "TEST_TYPE=unit NODE_OPTIONS=--experimental-vm-modules jest --silent --runInBand --forceExit",
     "test": "pnpm run test:unit && pnpm run test:integration:http",
-    "generate:client": "openapi-typescript \"${VORI_OPENAPI_SPEC:-openapi.json}\" -o src/modules/vori/lib/generated/schema.d.ts"
+    "generate:client": "openapi-typescript \"${VORI_OPENAPI_SPEC:-https://api.vori.com/openapi.json}\" -o src/modules/vori/lib/generated/schema.d.ts"
   },
   "dependencies": {
     "@medusajs/admin-sdk": "2.19.0",

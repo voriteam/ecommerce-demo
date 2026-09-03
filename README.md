@@ -385,8 +385,14 @@ apps/storefront/                   the Next.js storefront
 API adds, removes or retypes breaks the build rather than failing silently at runtime:
 
 ```bash
-VORI_OPENAPI_SPEC=path/to/openapi.json pnpm generate:client
+pnpm generate:client
 ```
+
+It reads <https://api.vori.com/openapi.json>, which is the grocer-facing description and the only
+one this store should be built against. Point `VORI_OPENAPI_SPEC` at a file to generate from an
+unreleased spec instead — but not at the API's internal description, which carries every endpoint
+Vori has rather than the published few, and which compiles perfectly well while baking the lot into
+a demo.
 
 ## Tests
 
