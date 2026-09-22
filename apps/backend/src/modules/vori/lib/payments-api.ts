@@ -1,6 +1,7 @@
 import type { VoriPaymentsMode } from "./config"
-import { centsToDecimal, decimalToCentsRounded, sumCents } from "./money"
 import type { VoriApiError } from "./errors"
+import type { components } from "./generated/schema"
+import { centsToDecimal, decimalToCentsRounded, sumCents } from "./money"
 
 /**
  * A card is tokenized in the shopper's browser, and only that one-time token
@@ -8,41 +9,15 @@ import type { VoriApiError } from "./errors"
  * later voids or returns it, so no card number or CVV is ever handled here.
  */
 
-// Hand-written until the published spec carries these endpoints. Replace with
+export type VoriPayment = components["schemas"]["Payment"]
+export type CreateVoriPaymentRequest = components["schemas"]["CreatePaymentRequest"]
+export type VoriPaymentStatus = components["schemas"]["PaymentStatus"]
+
+// Refunds are hand-written until the published spec carries them. Replace with
 // `components["schemas"]` from generated/schema.d.ts after `pnpm generate:client`.
 type ErrorBody = { error_code: string; error_details?: Record<string, unknown> }
 
 type JsonResponse<T> = { headers: { [name: string]: unknown }; content: { "application/json": T } }
-
-export type VoriPaymentStatus = "approved" | "declined" | "pending"
-
-export type VoriPaymentMethod = {
-  brand: null | string
-  masked_account_number: null | string
-  type: "card"
-}
-
-export type VoriPayment = {
-  amount: string
-  created_at: string
-  id: string
-  idempotency_key: string
-  metadata: null | Record<string, string>
-  mode: VoriPaymentsMode
-  payment_method: VoriPaymentMethod
-  processor: string
-  status: VoriPaymentStatus
-  store_id: string
-}
-
-export type CreateVoriPaymentRequest = {
-  amount: string
-  idempotency_key: string
-  metadata?: Record<string, string>
-  mode: VoriPaymentsMode
-  store_id: string
-  token: string
-}
 
 export type VoriPaymentRefund = {
   amount: string
@@ -91,17 +66,7 @@ type Unused = {
   trace?: never
 }
 
-export type VoriPaymentsPaths = {
-  "/v1/payments": Unused & {
-    parameters: NoParameters
-    get?: never
-    post: CreateOperation<CreateVoriPaymentRequest, VoriPayment>
-  }
-  "/v1/payments/{id}": Unused & {
-    parameters: NoParameters
-    get: GetOperation<VoriPayment>
-    post?: never
-  }
+export type VoriRefundsPaths = {
   "/v1/refunds": Unused & {
     parameters: NoParameters
     get?: never

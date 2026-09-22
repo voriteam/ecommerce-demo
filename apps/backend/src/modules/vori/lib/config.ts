@@ -1,3 +1,5 @@
+import type { components } from "./generated/schema"
+
 /**
  * Environment-driven configuration for the Vori integration.
  *
@@ -8,7 +10,7 @@
  * deliberately.
  */
 
-export type VoriPaymentsMode = "live" | "test"
+export type VoriPaymentsMode = components["schemas"]["PaymentMode"]
 
 export type VoriConfig = {
   apiKey: string | undefined
