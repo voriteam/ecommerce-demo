@@ -13,6 +13,7 @@ const sale = {
   amountCents: 1249,
   cartId: "cart_01",
   currencyCode: "usd",
+  mode: "test" as const,
   sessionId: "payses_01",
   storeId: "4320",
   token: "DC4:token",
@@ -32,6 +33,7 @@ describe("building a payment", () => {
       amount: "12.49",
       idempotency_key: "payses_01",
       metadata: { medusa_cart_id: "cart_01" },
+      mode: "test",
       store_id: "4320",
       token: "DC4:token",
     })
@@ -62,6 +64,7 @@ describe("building a refund", () => {
         amountCents: 500,
         index: 1,
         medusaRefundId: "ref_01",
+        mode: "live",
         paymentId: "pay_01",
         storeId: "4320",
       }),
@@ -69,6 +72,7 @@ describe("building a refund", () => {
       amount: "5.00",
       idempotency_key: "pay_01:5.00:1",
       metadata: { medusa_refund_id: "ref_01" },
+      mode: "live",
       payment_id: "pay_01",
       store_id: "4320",
     })
@@ -79,6 +83,7 @@ describe("building a refund", () => {
       amountCents: 500,
       index: 0,
       medusaRefundId: "ref_01",
+      mode: "test",
       paymentId: "pay_01",
       storeId: "4320",
     })
@@ -86,6 +91,7 @@ describe("building a refund", () => {
       amountCents: 500,
       index: 0,
       medusaRefundId: "ref_02",
+      mode: "test",
       paymentId: "pay_01",
       storeId: "4320",
     })

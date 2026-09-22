@@ -379,15 +379,21 @@ provider switched on in the backend:
 ```bash
 # apps/backend/.env
 VORI_PAYMENTS_ENABLED=true
+VORI_PAYMENTS_MODE=test                # or live
 
 # apps/storefront/.env.local
 NEXT_PUBLIC_DATACAP_TOKEN_KEY=...
-NEXT_PUBLIC_DATACAP_ENVIRONMENT=cert   # or production
+NEXT_PUBLIC_VORI_PAYMENTS_MODE=test    # or live
 ```
+
+The two modes must agree. The storefront's mode picks which Datacap environment tokenizes the card,
+and the backend's is sent with every payment and refund to say which processor account Vori charges.
+A token minted in test cannot be charged live, so a mismatch fails every checkout. A refund goes
+back through the mode its payment was taken in.
 
 Enable Vori Payments on the United States region under Settings > Regions in the admin. The store in
 `VORI_STORE_ID` needs Datacap Pay API credentials in Vori, and the token key has to belong to the
-same merchant. Against Datacap's test environment (`cert`), use Datacap's test card
+same merchant. In `test` mode, use Datacap's test card
 `4111111111111111` with any future expiry.
 
 Like every other write, the charge waits on `VORI_WRITE_ENABLED`. With writes off, checkout still

@@ -25,7 +25,7 @@ import type {
 import { AbstractPaymentProvider, MedusaError } from "@medusajs/framework/utils"
 
 import { createVoriClient, unwrap, type VoriClient } from "../vori/lib/client"
-import { writeBlockedReason, type VoriConfig } from "../vori/lib/config"
+import { writeBlockedReason, type VoriConfig, type VoriPaymentsMode } from "../vori/lib/config"
 import { VoriApiError } from "../vori/lib/errors"
 import {
   amountToCents,
@@ -44,6 +44,7 @@ type SessionData = {
   cart_id?: string
   currency_code?: string
   last4?: string
+  mode?: VoriPaymentsMode
   session_id?: string
   token?: string
   vori_payment_id?: string
@@ -129,6 +130,7 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
       amountCents: data.amount_cents ?? 0,
       cartId: data.cart_id,
       currencyCode: data.currency_code ?? "",
+      mode: this.config.paymentsMode,
       sessionId: data.session_id ?? input.context?.idempotency_key ?? "",
       storeId: this.config.storeId ?? "",
       token,
@@ -142,6 +144,7 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
       return {
         data: {
           ...data,
+          mode: request.mode,
           vori_payment_request: { ...request, token: undefined },
           vori_write_blocked: blocked,
         },
@@ -167,6 +170,7 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
         ...data,
         ...(brand ? { card_brand: brand } : {}),
         ...(last4 ? { last4 } : {}),
+        mode: payment.mode ?? request.mode,
         vori_payment_id: payment.id,
         vori_payment_status: payment.status,
       },
@@ -223,6 +227,8 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
       amountCents,
       index: refunds.length,
       medusaRefundId,
+      // A refund goes back through the account the payment was taken on.
+      mode: data.mode ?? this.config.paymentsMode,
       paymentId,
       storeId: this.config.storeId ?? "",
     })

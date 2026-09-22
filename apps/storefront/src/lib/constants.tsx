@@ -62,7 +62,7 @@ export const isVoriPayments = (providerId?: string) => {
 export const datacapTokenKey = process.env.NEXT_PUBLIC_DATACAP_TOKEN_KEY || ""
 
 export const datacapScriptUrl =
-  process.env.NEXT_PUBLIC_DATACAP_ENVIRONMENT === "production"
+  process.env.NEXT_PUBLIC_VORI_PAYMENTS_MODE === "live"
     ? "https://token.dcap.com/v1/client"
     : "https://token-cert.dcap.com/v1/client"
 

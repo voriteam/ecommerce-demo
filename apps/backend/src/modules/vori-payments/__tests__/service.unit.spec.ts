@@ -18,6 +18,7 @@ const config = (overrides: Partial<VoriConfig> = {}): VoriConfig => ({
   apiKey: "sk_test",
   baseUrl: "https://api.vori.test",
   openFoodFactsEnabled: false,
+  paymentsMode: "test",
   storeId: "4320",
   syncCron: "* * * * *",
   syncEnabled: false,
@@ -49,6 +50,7 @@ const session = {
 const approvedPayment = {
   amount: "12.49",
   id: "pay_01jz8k",
+  mode: "test",
   payment_method: { brand: "visa", masked_account_number: "XXXXXXXXXXXX1111", type: "card" },
   status: "approved",
 }
@@ -85,10 +87,12 @@ describe("authorizing a payment", () => {
     expect(result.status).toBe("captured")
     expect(result.data).not.toHaveProperty("token")
     expect(result.data).toMatchObject({
+      mode: "test",
       vori_payment_request: {
         amount: "12.49",
         idempotency_key: "payses_01",
         metadata: { medusa_cart_id: "cart_01" },
+        mode: "test",
         store_id: "4320",
       },
       vori_write_blocked: "VORI_WRITE_ENABLED is false",
@@ -106,6 +110,7 @@ describe("authorizing a payment", () => {
         amount: "12.49",
         idempotency_key: "payses_01",
         metadata: { medusa_cart_id: "cart_01" },
+        mode: "test",
         store_id: "4320",
         token: "DC4:token",
       },
@@ -115,9 +120,19 @@ describe("authorizing a payment", () => {
     expect(result.data).toMatchObject({
       card_brand: "visa",
       last4: "1111",
+      mode: "test",
       vori_payment_id: "pay_01jz8k",
       vori_payment_status: "approved",
     })
+  })
+
+  it("charges in live mode when the store is configured for it", async () => {
+    POST.mockResolvedValue(ok({ ...approvedPayment, mode: "live" }))
+
+    const result = await provider({ paymentsMode: "live" }).authorizePayment({ data: session })
+
+    expect(POST.mock.calls[0][1].body.mode).toBe("live")
+    expect(result.data).toMatchObject({ mode: "live" })
   })
 
   it("does not charge again for a session already approved", async () => {
@@ -161,6 +176,7 @@ describe("authorizing a payment", () => {
 describe("refunding a payment", () => {
   const taken = {
     ...session,
+    mode: "test" as const,
     token: undefined,
     vori_payment_id: "pay_01jz8k",
     vori_payment_status: "approved",
@@ -180,6 +196,7 @@ describe("refunding a payment", () => {
         amount: "5.00",
         idempotency_key: "pay_01jz8k:5.00:0",
         metadata: { medusa_refund_id: "ref_01" },
+        mode: "test",
         payment_id: "pay_01jz8k",
         store_id: "4320",
       },
@@ -194,6 +211,14 @@ describe("refunding a payment", () => {
         },
       ],
     })
+  })
+
+  it("refunds in the mode the payment was taken in, not the current setting", async () => {
+    POST.mockResolvedValue(ok({ id: "re_01", status: "approved" }))
+
+    await provider({ paymentsMode: "live" }).refundPayment({ amount: 5, data: taken })
+
+    expect(POST.mock.calls[0][1].body.mode).toBe("test")
   })
 
   it("retries a failed refund under the same key", async () => {
