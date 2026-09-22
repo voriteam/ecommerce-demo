@@ -2578,6 +2578,15 @@ export interface components {
             /** @description How the payment was made. Cards are the only method today. */
             type: components["schemas"]["PaymentTenderType"];
         };
+        PaymentMissingProcessorTokenError: {
+            /** @enum {string} */
+            error_code: "payment_missing_processor_token";
+            error_details: components["schemas"]["PaymentMissingProcessorTokenErrorDetails"];
+        };
+        PaymentMissingProcessorTokenErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+        };
         /** @enum {string} */
         PaymentMode: "live" | "test";
         PaymentNotRefundableError: {
@@ -5734,7 +5743,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DuplicateIdempotencyKeyError"] | components["schemas"]["InvalidPaymentModeError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["PaymentMerchantAccountChangedError"] | components["schemas"]["PaymentNotRefundableError"] | components["schemas"]["PaymentProcessorNotConfiguredError"] | components["schemas"]["RefundAmountExceedsPaymentError"];
+                    "application/json": components["schemas"]["DuplicateIdempotencyKeyError"] | components["schemas"]["InvalidPaymentModeError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["PaymentMerchantAccountChangedError"] | components["schemas"]["PaymentMissingProcessorTokenError"] | components["schemas"]["PaymentNotRefundableError"] | components["schemas"]["PaymentProcessorNotConfiguredError"] | components["schemas"]["RefundAmountExceedsPaymentError"];
                 };
             };
             402: {
