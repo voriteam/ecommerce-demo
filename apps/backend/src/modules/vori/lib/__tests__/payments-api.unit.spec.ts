@@ -120,7 +120,7 @@ describe("reading a Medusa amount", () => {
 })
 
 describe("explaining a refusal", () => {
-  it("tells the shopper about a decline and a payment still in flight", () => {
+  it("tells the shopper about a declined card or refund and a payment still in flight", () => {
     expect(paymentRefusalMessage(refusal(402, "card_declined"))).toMatch(/declined/)
     expect(paymentRefusalMessage(refusal(409, "payment_in_progress"))).toMatch(/still being/)
     expect(paymentRefusalMessage(refusal(402, "refund_declined"))).toMatch(/refund/)

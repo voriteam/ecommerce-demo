@@ -61,7 +61,7 @@ const stripeProviders = process.env.STRIPE_API_KEY
 /**
  * Vori Payments is opt-in the same way. It charges only while Vori writes are
  * on; with them off it records the request it would have sent and takes
- * nothing, so turning it on is safe against a real store.
+ * nothing.
  */
 const voriPaymentsProviders =
   process.env.VORI_PAYMENTS_ENABLED === "true"

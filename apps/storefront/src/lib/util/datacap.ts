@@ -2,8 +2,8 @@
  * Datacap's WebToken client, loaded from Datacap by VoriPaymentsWrapper.
  *
  * It reads the card straight out of the inputs marked with `data-token` and
- * returns a one-time token. The card number and CVV never pass through this
- * code: only the token, the brand and the last four go on to the server.
+ * returns a one-time token. The card number and CVV stay in the browser: only
+ * the token, the brand and the last four go on to the server.
  */
 
 export type DatacapToken = {

@@ -269,7 +269,7 @@ describe("refunding a payment", () => {
 })
 
 describe("reading a payment's status", () => {
-  it("asks Vori for a payment it took", async () => {
+  it("reads a payment it took back from Vori and reports its status", async () => {
     GET.mockResolvedValue(ok({ ...approvedPayment, status: "declined" }, 200))
 
     const result = await provider().getPaymentStatus({
