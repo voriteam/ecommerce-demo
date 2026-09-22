@@ -198,6 +198,19 @@ export const amountToCents = (amount: unknown): number => {
 export const isUnconfirmedPayment = (error: unknown): boolean =>
   error instanceof VoriApiError && error.errorCode === "payment_processor_timeout"
 
+/** The Vori payment a refusal is about, and what the processor said, when it names them. */
+export const refusalDetails = (
+  error: VoriApiError,
+): { paymentId: null | string; processorMessage: null | string } => {
+  const details = (error.errorDetails ?? {}) as Record<string, unknown>
+
+  return {
+    paymentId: typeof details.payment_id === "string" ? details.payment_id : null,
+    processorMessage:
+      typeof details.processor_message === "string" ? details.processor_message : null,
+  }
+}
+
 /**
  * What to tell the shopper when Vori refuses, or null when the refusal is ours
  * to fix rather than theirs to act on.

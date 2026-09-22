@@ -6,6 +6,7 @@ import {
   PaymentBuildError,
   isUnconfirmedPayment,
   paymentRefusalMessage,
+  refusalDetails,
   refundIdempotencyKey,
   remainingRefundableCents,
 } from "../payments-api"
@@ -143,5 +144,28 @@ describe("recognising a payment nobody can vouch for", () => {
     expect(isUnconfirmedPayment(refusal(504, "payment_processor_timeout"))).toBe(true)
     expect(isUnconfirmedPayment(refusal(402, "card_declined"))).toBe(false)
     expect(isUnconfirmedPayment(new Error("socket hang up"))).toBe(false)
+  })
+})
+
+describe("reading what a refusal is about", () => {
+  it("names the payment and the processor's reason", () => {
+    const declined = new VoriApiError({
+      body: {
+        error_code: "card_declined",
+        error_details: { payment_id: "pay_01", processor_message: "DECLINED" },
+      },
+      method: "POST",
+      path: "/v1/payments",
+      status: 402,
+    })
+
+    expect(refusalDetails(declined)).toEqual({ paymentId: "pay_01", processorMessage: "DECLINED" })
+  })
+
+  it("names nothing when the refusal carries no details", () => {
+    expect(refusalDetails(refusal(400, "invalid_store"))).toEqual({
+      paymentId: null,
+      processorMessage: null,
+    })
   })
 })

@@ -32,8 +32,8 @@ const provider = (overrides: Partial<VoriConfig> = {}) =>
 
 const ok = <T>(data: T, status = 201) => ({ data, response: new Response(null, { status }) })
 
-const refused = (status: number, errorCode: string) => ({
-  error: { error_code: errorCode },
+const refused = (status: number, errorCode: string, details?: Record<string, unknown>) => ({
+  error: { error_code: errorCode, ...(details ? { error_details: details } : {}) },
   response: new Response(null, { status }),
 })
 
@@ -165,17 +165,26 @@ describe("authorizing a payment", () => {
   })
 
   it("leaves a payment the processor never answered open under the same key", async () => {
-    POST.mockResolvedValue(refused(504, "payment_processor_timeout"))
+    POST.mockResolvedValue(
+      refused(504, "payment_processor_timeout", { payment_id: "pay_01timeout" }),
+    )
 
     const result = await provider().authorizePayment({ data: session })
 
     expect(result.status).toBe("requires_more")
-    expect(result.data).toMatchObject({ session_id: "payses_01", token: "DC4:token" })
+    expect(result.data).toMatchObject({
+      session_id: "payses_01",
+      token: "DC4:token",
+      vori_payment_id: "pay_01timeout",
+      vori_payment_status: "pending",
+    })
     expect((result.data as any).vori_payment_unconfirmed_at).toEqual(expect.any(String))
   })
 
   it("asks again under the same key after a timeout and settles on Vori's answer", async () => {
-    POST.mockResolvedValueOnce(refused(504, "payment_processor_timeout"))
+    POST.mockResolvedValueOnce(
+      refused(504, "payment_processor_timeout", { payment_id: "pay_01timeout" }),
+    )
     POST.mockResolvedValueOnce(ok(approvedPayment))
 
     const first = await provider().authorizePayment({ data: session })
@@ -190,14 +199,21 @@ describe("authorizing a payment", () => {
   })
 
   it("settles a timed-out payment Vori then reports declined", async () => {
-    POST.mockResolvedValueOnce(refused(504, "payment_processor_timeout"))
-    POST.mockResolvedValueOnce(refused(402, "card_declined"))
+    POST.mockResolvedValueOnce(
+      refused(504, "payment_processor_timeout", { payment_id: "pay_01timeout" }),
+    )
+    POST.mockResolvedValueOnce(
+      refused(402, "card_declined", { payment_id: "pay_01timeout", processor_message: "DECLINED" }),
+    )
 
     const first = await provider().authorizePayment({ data: session })
     const retry = await provider().authorizePayment({ data: first.data })
 
     expect(retry.status).toBe("error")
-    expect(retry.data).toMatchObject({ vori_payment_status: "declined" })
+    expect(retry.data).toMatchObject({
+      vori_payment_id: "pay_01timeout",
+      vori_payment_status: "declined",
+    })
     expect(retry.data).not.toHaveProperty("vori_payment_unconfirmed_at")
   })
 
@@ -321,6 +337,14 @@ describe("refunding a payment", () => {
       amount: "7.49",
       idempotency_key: "pay_01jz8k:7.49:1",
     })
+  })
+
+  it("refunds nothing for a payment Vori never approved", async () => {
+    await provider().cancelPayment({
+      data: { ...taken, vori_payment_status: "pending" },
+    })
+
+    expect(POST).not.toHaveBeenCalled()
   })
 
   it("cancels nothing when no payment was taken", async () => {

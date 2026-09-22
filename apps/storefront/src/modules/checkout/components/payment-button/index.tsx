@@ -178,10 +178,13 @@ const StripePaymentButton = ({
   )
 }
 
-const UNCONFIRMED_PAYMENT_MESSAGE =
+const unconfirmedPaymentMessage = (paymentId: unknown) =>
   "We could not confirm your payment, and your card may have been charged. " +
   "Please do not pay again until the store confirms. Placing the order again " +
-  "checks the same payment rather than taking a new one."
+  "checks the same payment rather than taking a new one." +
+  (typeof paymentId === "string"
+    ? ` If you contact the store, quote payment ${paymentId}.`
+    : "")
 
 const DECLINED_MESSAGE =
   "Your card was declined. Check the details or try another card."
@@ -256,7 +259,9 @@ const VoriPaymentsPaymentButton = ({
       setUnconfirmed(stillUnconfirmed)
       setErrorMessage(
         stillUnconfirmed
-          ? UNCONFIRMED_PAYMENT_MESSAGE
+          ? unconfirmedPaymentMessage(
+              sessionData(latest, providerId)?.vori_payment_id
+            )
           : declined
           ? DECLINED_MESSAGE
           : error instanceof Error
@@ -280,7 +285,14 @@ const VoriPaymentsPaymentButton = ({
         Place order
       </Button>
       <ErrorMessage
-        error={errorMessage ?? (unconfirmed ? UNCONFIRMED_PAYMENT_MESSAGE : null)}
+        error={
+          errorMessage ??
+          (unconfirmed
+            ? unconfirmedPaymentMessage(
+                sessionData(cart, providerId)?.vori_payment_id
+              )
+            : null)
+        }
         data-testid="vori-payments-error-message"
       />
     </>

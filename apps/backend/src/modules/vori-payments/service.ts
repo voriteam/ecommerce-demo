@@ -33,6 +33,7 @@ import {
   buildCreateRefundRequest,
   isUnconfirmedPayment,
   paymentRefusalMessage,
+  refusalDetails,
   remainingRefundableCents,
   type RecordedRefund,
   type VoriPayment,
@@ -165,26 +166,45 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
         path: "/v1/payments",
       })
     } catch (error) {
+      if (!(error instanceof VoriApiError)) throw error
+
+      const { paymentId, processorMessage } = refusalDetails(error)
+      const reference = paymentId ? { vori_payment_id: paymentId } : {}
+
       // Left open rather than failed, with its token, so the next attempt from
       // this cart asks Vori under the same key and learns what happened instead
       // of charging the card a second time.
       if (isUnconfirmedPayment(error)) {
-        this.logger_.warn(`vori-payments: no answer for session ${data.session_id}, may be charged`)
+        this.logger_.warn(
+          `vori-payments: no answer for ${paymentId ?? data.session_id}, may be charged`,
+        )
 
         return {
           data: {
             ...data,
+            ...reference,
             token,
+            vori_payment_status: "pending",
             vori_payment_unconfirmed_at: unconfirmedAt ?? new Date().toISOString(),
           },
           status: "requires_more",
         }
       }
 
-      // The answer to an unconfirmed payment is settled on the session, since
-      // a throw would leave it marked unconfirmed for good.
-      if (unconfirmedAt && error instanceof VoriApiError && error.errorCode === "card_declined") {
-        return { data: { ...data, vori_payment_status: "declined" }, status: "error" }
+      if (error.errorCode === "card_declined") {
+        this.logger_.info(
+          `vori-payments: ${paymentId ?? data.session_id} declined` +
+            (processorMessage ? ` (${processorMessage})` : ""),
+        )
+
+        // The answer to an unconfirmed payment is settled on the session, since
+        // a throw would leave it marked unconfirmed for good.
+        if (unconfirmedAt) {
+          return {
+            data: { ...data, ...reference, vori_payment_status: "declined" },
+            status: "error",
+          }
+        }
       }
 
       throw this.refusal(error, MedusaError.Types.PAYMENT_AUTHORIZATION_ERROR)
@@ -225,7 +245,7 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
    */
   async cancelPayment(input: CancelPaymentInput): Promise<CancelPaymentOutput> {
     const data = (input.data ?? {}) as SessionData
-    if (!data.vori_payment_id) return { data }
+    if (!data.vori_payment_id || data.vori_payment_status !== "approved") return { data }
 
     const remaining = remainingRefundableCents(data.amount_cents ?? 0, data.vori_refunds ?? [])
     if (remaining <= 0) return { data }

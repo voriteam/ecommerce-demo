@@ -399,7 +399,7 @@ export interface paths {
         put?: never;
         /**
          * Create a payment
-         * @description Charges a card your site or app tokenized in the browser, through the payment processor configured for the store. Retrying with the same `idempotency_key` returns the payment already taken instead of charging the card again, and answers a declined card with the same decline. If the processor does not answer, the payment keeps the status `pending` and this call returns a gateway timeout: the card may still have been charged, so confirm the charge before taking another one with a new `idempotency_key` and a new token.
+         * @description Charges a card your site or app tokenized in the browser, through the payment processor configured for the store. Retrying with the same `idempotency_key` returns the payment already taken instead of charging the card again, and answers a declined card with the same decline. If the processor does not answer, the payment keeps the status `pending` and this call returns a gateway timeout: retry with the same `idempotency_key` and a fresh token, and the retry answers with the outcome as soon as the processor confirms it, charging the card only if the first attempt never reached it.
          */
         post: operations["createPayment"];
         delete?: never;
@@ -858,6 +858,13 @@ export interface components {
         CardDeclinedError: {
             /** @enum {string} */
             error_code: "card_declined";
+            error_details: components["schemas"]["CardDeclinedErrorDetails"];
+        };
+        CardDeclinedErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+            /** @description What the payment processor said about the decline, in its own words. Null when it gave no reason. */
+            processor_message: string | null;
         };
         CompactFoodModifierCategory: {
             id: string;
@@ -2453,6 +2460,11 @@ export interface components {
         PaymentInProgressError: {
             /** @enum {string} */
             error_code: "payment_in_progress";
+            error_details: components["schemas"]["PaymentInProgressErrorDetails"];
+        };
+        PaymentInProgressErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
         };
         PaymentList: {
             data: components["schemas"]["Payment"][];
@@ -2475,10 +2487,20 @@ export interface components {
         PaymentProcessorNotConfiguredError: {
             /** @enum {string} */
             error_code: "payment_processor_not_configured";
+            error_details: components["schemas"]["PaymentProcessorNotConfiguredErrorDetails"];
+        };
+        PaymentProcessorNotConfiguredErrorDetails: {
+            /** @description ID of the store that has no payment processor. */
+            store_id: string;
         };
         PaymentProcessorTimeoutError: {
             /** @enum {string} */
             error_code: "payment_processor_timeout";
+            error_details: components["schemas"]["PaymentProcessorTimeoutErrorDetails"];
+        };
+        PaymentProcessorTimeoutErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
         };
         /** @enum {string} */
         PaymentStatus: "approved" | "declined" | "pending";
