@@ -108,8 +108,7 @@ const Payment = ({
         })
       }
 
-      const shouldInputCard =
-        isStripeLike(selectedPaymentMethod) && !activeSession
+      const shouldInputCard = needsCard(selectedPaymentMethod) && !activeSession
 
       const checkActiveSession =
         activeSession?.provider_id === selectedPaymentMethod
@@ -250,7 +249,7 @@ const Payment = ({
             }
             data-testid="submit-payment-button"
           >
-            {!activeSession && isStripeLike(selectedPaymentMethod)
+            {!activeSession && needsCard(selectedPaymentMethod)
               ? " Enter card details"
               : "Continue to review"}
           </Button>

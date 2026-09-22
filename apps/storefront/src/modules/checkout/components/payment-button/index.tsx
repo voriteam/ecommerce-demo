@@ -251,10 +251,25 @@ const VoriPaymentsPaymentButton = ({
 
       await placeOrder()
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      // Offline, this read fails too. Then nothing new is known, so what the
+      // cart last said about an unconfirmed payment stands.
       const latest = await retrieveCart(
         cart.id,
         "id,*payment_collection.payment_sessions"
-      )
+      ).catch(() => null)
+
+      if (!latest) {
+        setErrorMessage(
+          unconfirmed
+            ? unconfirmedPaymentMessage(
+                sessionData(cart, providerId)?.vori_payment_id
+              )
+            : message
+        )
+        return
+      }
+
       const stillUnconfirmed = isUnconfirmed(latest, providerId)
       const declined =
         sessionData(latest, providerId)?.vori_payment_status === "declined"
@@ -267,9 +282,7 @@ const VoriPaymentsPaymentButton = ({
             )
           : declined
           ? DECLINED_MESSAGE
-          : error instanceof Error
-          ? error.message
-          : String(error)
+          : message
       )
     } finally {
       setSubmitting(false)
