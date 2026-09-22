@@ -55,7 +55,7 @@ const Payment = ({
   const isOpen = searchParams.get("step") === "payment"
 
   // Without a token key there is no way to read a card for Vori Payments.
-  const paymentMethods = availablePaymentMethods?.filter(
+  const paymentMethods = (availablePaymentMethods ?? []).filter(
     (method) => datacapTokenKey || !isVoriPayments(method.id)
   )
 
@@ -173,7 +173,17 @@ const Payment = ({
               the need to choose one at all. */}
           <GiftCardPayment cart={cart} />
 
-          {!paidByGiftcard && paymentMethods?.length && (
+          {!paidByGiftcard && paymentMethods.length === 0 && (
+            <Text
+              className="txt-medium text-ui-fg-subtle"
+              data-testid="no-payment-methods"
+            >
+              This store is not taking card payments online right now. Please
+              contact the store to place your order.
+            </Text>
+          )}
+
+          {!paidByGiftcard && paymentMethods.length > 0 && (
             <>
               <RadioGroup
                 value={selectedPaymentMethod}
