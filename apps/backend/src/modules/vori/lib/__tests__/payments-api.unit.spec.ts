@@ -4,6 +4,7 @@ import {
   buildCreatePaymentRequest,
   buildCreateRefundRequest,
   PaymentBuildError,
+  isUnconfirmedPayment,
   paymentRefusalMessage,
   refundIdempotencyKey,
   remainingRefundableCents,
@@ -134,5 +135,13 @@ describe("explaining a refusal", () => {
 
   it("says nothing about a refusal the shopper cannot act on", () => {
     expect(paymentRefusalMessage(refusal(400, "invalid_store"))).toBeNull()
+  })
+})
+
+describe("recognising a payment nobody can vouch for", () => {
+  it("treats a processor timeout as unconfirmed and a decline as settled", () => {
+    expect(isUnconfirmedPayment(refusal(504, "payment_processor_timeout"))).toBe(true)
+    expect(isUnconfirmedPayment(refusal(402, "card_declined"))).toBe(false)
+    expect(isUnconfirmedPayment(new Error("socket hang up"))).toBe(false)
   })
 })

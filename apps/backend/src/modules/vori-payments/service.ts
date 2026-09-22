@@ -31,6 +31,7 @@ import {
   amountToCents,
   buildCreatePaymentRequest,
   buildCreateRefundRequest,
+  isUnconfirmedPayment,
   paymentRefusalMessage,
   remainingRefundableCents,
   type RecordedRefund,
@@ -49,6 +50,7 @@ type SessionData = {
   token?: string
   vori_payment_id?: string
   vori_payment_status?: VoriPaymentStatus
+  vori_payment_unconfirmed_at?: string
   vori_refunds?: RecordedRefund[]
   vori_write_blocked?: string
 } & Record<string, unknown>
@@ -118,7 +120,11 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
   }
 
   async authorizePayment(input: AuthorizePaymentInput): Promise<AuthorizePaymentOutput> {
-    const { token, ...data } = (input.data ?? {}) as SessionData
+    const {
+      token,
+      vori_payment_unconfirmed_at: unconfirmedAt,
+      ...data
+    } = (input.data ?? {}) as SessionData
 
     if (data.vori_payment_id && data.vori_payment_status === "approved") {
       return { data, status: "captured" }
@@ -159,6 +165,28 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
         path: "/v1/payments",
       })
     } catch (error) {
+      // Left open rather than failed, with its token, so the next attempt from
+      // this cart asks Vori under the same key and learns what happened instead
+      // of charging the card a second time.
+      if (isUnconfirmedPayment(error)) {
+        this.logger_.warn(`vori-payments: no answer for session ${data.session_id}, may be charged`)
+
+        return {
+          data: {
+            ...data,
+            token,
+            vori_payment_unconfirmed_at: unconfirmedAt ?? new Date().toISOString(),
+          },
+          status: "requires_more",
+        }
+      }
+
+      // The answer to an unconfirmed payment is settled on the session, since
+      // a throw would leave it marked unconfirmed for good.
+      if (unconfirmedAt && error instanceof VoriApiError && error.errorCode === "card_declined") {
+        return { data: { ...data, vori_payment_status: "declined" }, status: "error" }
+      }
+
       throw this.refusal(error, MedusaError.Types.PAYMENT_AUTHORIZATION_ERROR)
     }
 

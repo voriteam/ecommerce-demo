@@ -1,5 +1,5 @@
 import type { VoriPaymentsMode } from "./config"
-import type { VoriApiError } from "./errors"
+import { VoriApiError } from "./errors"
 import type { components } from "./generated/schema"
 import { centsToDecimal, decimalToCentsRounded, sumCents } from "./money"
 
@@ -190,6 +190,13 @@ export const amountToCents = (amount: unknown): number => {
   if (cents === null) throw new PaymentBuildError(`${String(amount)} is not an amount of money.`)
   return cents
 }
+
+/**
+ * The processor did not answer in time, so the card may or may not have been
+ * charged. Only another request under the same idempotency key can say which.
+ */
+export const isUnconfirmedPayment = (error: unknown): boolean =>
+  error instanceof VoriApiError && error.errorCode === "payment_processor_timeout"
 
 /**
  * What to tell the shopper when Vori refuses, or null when the refusal is ours
