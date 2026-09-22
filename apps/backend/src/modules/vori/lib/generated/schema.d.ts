@@ -1379,7 +1379,7 @@ export interface components {
             mode: components["schemas"]["PaymentMode"];
             /** @description ID of the store to charge the card for. The charge settles to the processor account configured for that store. */
             store_id: string;
-            /** @description One-time token returned by the hosted tokenizer for the card being charged. A token is good for a single charge, so a retried request needs a new one. */
+            /** @description One-time token returned by the hosted tokenizer for the card being charged. A token is good for a single charge, so a new payment needs a new one. Retrying a payment that timed out may send the token it already has, which is only used if the charge never reached the processor. */
             token: string;
         };
         /** @description A product returned on a refund being recorded, with the quantity or weight coming back, the price it sold at, and the savings, fees, and tax being reversed with it. */
@@ -2554,6 +2554,17 @@ export interface components {
             data: components["schemas"]["Payment"][];
             /** @description Whether more records follow this page. */
             has_more: boolean;
+        };
+        PaymentMerchantAccountChangedError: {
+            /** @enum {string} */
+            error_code: "payment_merchant_account_changed";
+            error_details: components["schemas"]["PaymentMerchantAccountChangedErrorDetails"];
+        };
+        PaymentMerchantAccountChangedErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+            /** @description ID of the store whose payment processor account changed. */
+            store_id: string;
         };
         /** @description The card a payment was taken from, as the processor saw it. */
         PaymentMethod: {
@@ -5720,7 +5731,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DuplicateIdempotencyKeyError"] | components["schemas"]["InvalidPaymentModeError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["PaymentNotRefundableError"] | components["schemas"]["PaymentProcessorNotConfiguredError"] | components["schemas"]["RefundAmountExceedsPaymentError"];
+                    "application/json": components["schemas"]["DuplicateIdempotencyKeyError"] | components["schemas"]["InvalidPaymentModeError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["PaymentMerchantAccountChangedError"] | components["schemas"]["PaymentNotRefundableError"] | components["schemas"]["PaymentProcessorNotConfiguredError"] | components["schemas"]["RefundAmountExceedsPaymentError"];
                 };
             };
             402: {
