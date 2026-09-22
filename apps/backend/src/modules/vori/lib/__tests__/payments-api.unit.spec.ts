@@ -128,10 +128,11 @@ describe("reading a Medusa amount", () => {
 })
 
 describe("explaining a refusal", () => {
-  it("tells the shopper about a declined card or refund and a payment still in flight", () => {
+  it("explains a declined card or refund and a payment or refund still in flight", () => {
     expect(paymentRefusalMessage(refusal(402, "card_declined"))).toMatch(/declined/)
     expect(paymentRefusalMessage(refusal(409, "payment_in_progress"))).toMatch(/still being/)
     expect(paymentRefusalMessage(refusal(402, "refund_declined"))).toMatch(/refund/)
+    expect(paymentRefusalMessage(refusal(409, "refund_in_progress"))).toMatch(/refund is still/)
   })
 
   it("says nothing about a refusal the shopper cannot act on", () => {
@@ -159,13 +160,18 @@ describe("reading what a refusal is about", () => {
       status: 402,
     })
 
-    expect(refusalDetails(declined)).toEqual({ paymentId: "pay_01", processorMessage: "DECLINED" })
+    expect(refusalDetails(declined)).toEqual({
+      paymentId: "pay_01",
+      processorMessage: "DECLINED",
+      refundId: null,
+    })
   })
 
   it("names nothing when the refusal carries no details", () => {
     expect(refusalDetails(refusal(400, "invalid_store"))).toEqual({
       paymentId: null,
       processorMessage: null,
+      refundId: null,
     })
   })
 })

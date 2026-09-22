@@ -13,71 +13,8 @@ export type VoriPayment = components["schemas"]["Payment"]
 export type CreateVoriPaymentRequest = components["schemas"]["CreatePaymentRequest"]
 export type VoriPaymentStatus = components["schemas"]["PaymentStatus"]
 
-// Refunds are hand-written until the published spec carries them. Replace with
-// `components["schemas"]` from generated/schema.d.ts after `pnpm generate:client`.
-type ErrorBody = { error_code: string; error_details?: Record<string, unknown> }
-
-type JsonResponse<T> = { headers: { [name: string]: unknown }; content: { "application/json": T } }
-
-export type VoriPaymentRefund = {
-  amount: string
-  created_at: string
-  id: string
-  idempotency_key: string
-  metadata: null | Record<string, string>
-  mode: VoriPaymentsMode
-  payment_id: string
-  processor: string
-  status: VoriPaymentStatus
-  store_id: string
-  type: "return" | "void"
-}
-
-export type CreateVoriPaymentRefundRequest = {
-  amount: string
-  idempotency_key: string
-  metadata?: Record<string, string>
-  mode: VoriPaymentsMode
-  payment_id: string
-  store_id: string
-}
-
-type NoParameters = { query?: never; header?: never; path?: never; cookie?: never }
-type IdParameter = { query?: never; header?: never; path: { id: string }; cookie?: never }
-
-type CreateOperation<TBody, TResult> = {
-  parameters: NoParameters
-  requestBody: { content: { "application/json": TBody } }
-  responses: { 201: JsonResponse<TResult>; default: JsonResponse<ErrorBody> }
-}
-
-type GetOperation<TResult> = {
-  parameters: IdParameter
-  requestBody?: never
-  responses: { 200: JsonResponse<TResult>; default: JsonResponse<ErrorBody> }
-}
-
-type Unused = {
-  put?: never
-  delete?: never
-  options?: never
-  head?: never
-  patch?: never
-  trace?: never
-}
-
-export type VoriRefundsPaths = {
-  "/v1/refunds": Unused & {
-    parameters: NoParameters
-    get?: never
-    post: CreateOperation<CreateVoriPaymentRefundRequest, VoriPaymentRefund>
-  }
-  "/v1/refunds/{id}": Unused & {
-    parameters: NoParameters
-    get: GetOperation<VoriPaymentRefund>
-    post?: never
-  }
-}
+export type VoriPaymentRefund = components["schemas"]["PaymentRefund"]
+export type CreateVoriPaymentRefundRequest = components["schemas"]["CreatePaymentRefundRequest"]
 
 export class PaymentBuildError extends Error {}
 
@@ -198,16 +135,17 @@ export const amountToCents = (amount: unknown): number => {
 export const isUnconfirmedPayment = (error: unknown): boolean =>
   error instanceof VoriApiError && error.errorCode === "payment_processor_timeout"
 
-/** The Vori payment a refusal is about, and what the processor said, when it names them. */
+/** The Vori payment or refund a refusal is about, and what the processor said, when it names them. */
 export const refusalDetails = (
   error: VoriApiError,
-): { paymentId: null | string; processorMessage: null | string } => {
+): { paymentId: null | string; processorMessage: null | string; refundId: null | string } => {
   const details = (error.errorDetails ?? {}) as Record<string, unknown>
+  const text = (value: unknown) => (typeof value === "string" ? value : null)
 
   return {
-    paymentId: typeof details.payment_id === "string" ? details.payment_id : null,
-    processorMessage:
-      typeof details.processor_message === "string" ? details.processor_message : null,
+    paymentId: text(details.payment_id),
+    processorMessage: text(details.processor_message),
+    refundId: text(details.refund_id),
   }
 }
 
@@ -223,6 +161,8 @@ export const paymentRefusalMessage = (error: VoriApiError): null | string => {
       return "The card processor declined the refund."
     case "payment_in_progress":
       return "This payment is still being processed. Wait a moment and try again."
+    case "refund_in_progress":
+      return "This refund is still being processed. Wait a moment and try again."
     default:
       return null
   }

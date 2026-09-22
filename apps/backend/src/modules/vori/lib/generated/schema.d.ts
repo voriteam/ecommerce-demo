@@ -428,6 +428,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List refunds
+         * @description Lists the refunds made for the stores you can reach, newest first. Filter by payment, store, status or mode, and page through the results with the cursor parameters.
+         */
+        get: operations["listRefunds"];
+        put?: never;
+        /**
+         * Create a refund
+         * @description Gives money back from a payment taken through Vori. A refund of the whole payment within a day of the charge cancels it before it settles, and any other refund sends the money back to the card. Refunds are capped at what remains of the payment, and retrying with the same `idempotency_key` returns the refund already made instead of refunding again. If the processor does not answer, the refund keeps the status `pending` and this call returns a gateway timeout: the money may still have moved, so confirm the refund before making another one with a new `idempotency_key`.
+         */
+        post: operations["createRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/refunds/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve a refund
+         * @description Reads a refund back, including the `status` of the money going back and whether the payment was cancelled or returned.
+         */
+        get: operations["getRefund"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/shoppers": {
         parameters: {
             query?: never;
@@ -1283,6 +1327,33 @@ export interface components {
              * @example 199.99
              */
             value: string;
+        };
+        /** @description Gives money back from a payment taken through the Vori API, using the payment processor that took it. */
+        CreatePaymentRefundRequest: {
+            /**
+             * Format: positive-monetary
+             * @description Amount to return to the card, in dollars. Refund the full `amount` of the payment or any part of it.
+             * @example 199.99
+             */
+            amount: string;
+            /** @description Your own key for the refund, unique within the banner. Sending the same key again returns the refund already made rather than refunding twice. */
+            idempotency_key: string;
+            /**
+             * @description Your own key/value pairs, stored with the transaction and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
+             * @example {
+             *       "order_source": "shopify",
+             *       "fulfillment_id": "88213"
+             *     }
+             */
+            metadata?: {
+                [key: string]: string;
+            } | null;
+            /** @description Whether money moves for real or not: `test` refunds in the payment processor's test environment and never moves money, and `live` makes an actual refund. It has to match the `mode` of the payment being refunded. */
+            mode: components["schemas"]["PaymentMode"];
+            /** @description ID of the payment to refund. The payment has to be `approved`, and what is refunded across all of its refunds can never exceed what was charged. */
+            payment_id: string;
+            /** @description ID of the store the payment was taken for. It has to be the same store that was charged. */
+            store_id: string;
         };
         /** @description Charges a card that your site or app tokenized in the browser, using the payment processor configured for the store. */
         CreatePaymentRequest: {
@@ -2253,6 +2324,19 @@ export interface components {
             /** @enum {string} */
             error_code: "invalid_parent_department";
         };
+        InvalidPaymentModeError: {
+            /** @enum {string} */
+            error_code: "invalid_payment_mode";
+            error_details: components["schemas"]["InvalidPaymentModeErrorDetails"];
+        };
+        InvalidPaymentModeErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+            /** @description Mode the payment was taken in. */
+            payment_mode: components["schemas"]["PaymentMode"];
+            /** @description Mode the refund asked for. */
+            requested_mode: components["schemas"]["PaymentMode"];
+        };
         InvalidStoreError: {
             /** @enum {string} */
             error_code: "invalid_store";
@@ -2482,6 +2566,17 @@ export interface components {
         };
         /** @enum {string} */
         PaymentMode: "live" | "test";
+        PaymentNotRefundableError: {
+            /** @enum {string} */
+            error_code: "payment_not_refundable";
+            error_details: components["schemas"]["PaymentNotRefundableErrorDetails"];
+        };
+        PaymentNotRefundableErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+            /** @description Status the payment is in, which is not one a refund allows. */
+            status: components["schemas"]["PaymentStatus"];
+        };
         /** @enum {string} */
         PaymentProcessor: "datacap";
         PaymentProcessorNotConfiguredError: {
@@ -2501,7 +2596,61 @@ export interface components {
         PaymentProcessorTimeoutErrorDetails: {
             /** @description ID of the payment the error is about. */
             payment_id: string;
+            /** @description ID of the refund the error is about, when the processor was answering about a refund of the payment. */
+            refund_id?: string;
         };
+        /** @description A refund of a card payment taken through the Vori API. One refund is one attempt to give money back, and a refund is never edited once the processor has answered. */
+        PaymentRefund: {
+            /** @description Unique identifier for the record. */
+            id: string;
+            /**
+             * Format: positive-monetary
+             * @description Amount returned to the card, in dollars.
+             * @example 199.99
+             */
+            amount: string;
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            created_at: string;
+            /** @description Your own key for the refund, unique within the banner. Sending the same key again returns the refund already made rather than refunding twice. */
+            idempotency_key: string;
+            /**
+             * @description Your own key/value pairs, exactly as supplied when the refund was made.
+             * @example {
+             *       "order_source": "shopify",
+             *       "fulfillment_id": "88213"
+             *     }
+             */
+            metadata: {
+                [key: string]: string;
+            } | null;
+            /** @description Whether money moves for real or not: `test` refunds in the payment processor's test environment and never moves money, and `live` makes an actual refund. It has to match the `mode` of the payment being refunded. */
+            mode: components["schemas"]["PaymentMode"];
+            /** @description ID of the payment being refunded. */
+            payment_id: string;
+            /** @description The payment processor that handled the refund, which is the one that took the payment. */
+            processor: components["schemas"]["PaymentProcessor"];
+            /** @description Where the refund stands: `approved` once the money was sent back, `declined` when the processor refused it, and `pending` while the outcome is still unknown. Read the refund back to see a `pending` refund settle. */
+            status: components["schemas"]["PaymentStatus"];
+            /** @description ID of the store the refund was made for. */
+            store_id: string;
+            /** @description How the money was given back: `void` cancels the charge before it settles, and `return` sends money back to the card. Vori picks whichever the payment still allows. */
+            type: components["schemas"]["PaymentRefundType"];
+            /**
+             * Format: date-time
+             * @description When the record was last changed.
+             */
+            updated_at: string;
+        };
+        PaymentRefundList: {
+            data: components["schemas"]["PaymentRefund"][];
+            /** @description Whether more records follow this page. */
+            has_more: boolean;
+        };
+        /** @enum {string} */
+        PaymentRefundType: "return" | "void";
         /** @enum {string} */
         PaymentStatus: "approved" | "declined" | "pending";
         /** @enum {string} */
@@ -2525,6 +2674,21 @@ export interface components {
         PurchaseOrderLineItemUnitOfMeasure: "CASE" | "EACH" | "LB";
         /** @enum {string} */
         ReceiptType: "email" | "print" | "sms";
+        RefundAmountExceedsPaymentError: {
+            /** @enum {string} */
+            error_code: "refund_amount_exceeds_payment";
+        };
+        RefundDeclinedError: {
+            /** @enum {string} */
+            error_code: "refund_declined";
+            error_details: components["schemas"]["RefundDeclinedErrorDetails"];
+        };
+        RefundDeclinedErrorDetails: {
+            /** @description What the payment processor said about the refusal, in its own words. Null when it gave no reason. */
+            processor_message: string | null;
+            /** @description ID of the refund the error is about. */
+            refund_id: string;
+        };
         /** @enum {string} */
         RefundExceedsField: "line_discount_total" | "line_item_modifier_total" | "line_promo_savings" | "line_quantity" | "line_tax_total" | "line_taxable_amount" | "line_total" | "line_weight" | "payment_amount";
         RefundExceedsOriginalError: {
@@ -2540,6 +2704,15 @@ export interface components {
             transaction_line_item_id?: string;
             /** Format: uuid */
             transaction_payment_id?: string;
+        };
+        RefundInProgressError: {
+            /** @enum {string} */
+            error_code: "refund_in_progress";
+            error_details: components["schemas"]["RefundInProgressErrorDetails"];
+        };
+        RefundInProgressErrorDetails: {
+            /** @description ID of the refund the error is about. */
+            refund_id: string;
         };
         RefundLineItemsNotFoundError: {
             /** @enum {string} */
@@ -5453,6 +5626,154 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Payment"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listRefunds: {
+        parameters: {
+            query?: {
+                /** @description Return records that precede the record with this ID, in list order. */
+                ending_before?: string;
+                /** @description Maximum number of records to return. */
+                limit?: number;
+                /** @description Whether money moves for real or not: `test` refunds in the payment processor's test environment and never moves money, and `live` makes an actual refund. It has to match the `mode` of the payment being refunded. Repeat to match any of up to 20 values. */
+                mode?: ("live" | "test")[];
+                /** @description ID of the payment being refunded. Accepts a TypeID or a UUID. Repeat to match any of up to 20 values. */
+                payment_id?: string[];
+                /** @description Return records that follow the record with this ID, in list order. */
+                starting_after?: string;
+                /** @description Where the refund stands: `approved` once the money was sent back, `declined` when the processor refused it, and `pending` while the outcome is still unknown. Read the refund back to see a `pending` refund settle. Repeat to match any of up to 20 values. */
+                status?: ("approved" | "declined" | "pending")[];
+                /** @description ID of the store the refund was made for. Repeat to match any of up to 20 values. */
+                store_id?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentRefundList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictingListParametersError"] | components["schemas"]["InvalidListCursorError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    createRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePaymentRefundRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentRefund"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateIdempotencyKeyError"] | components["schemas"]["InvalidPaymentModeError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["PaymentNotRefundableError"] | components["schemas"]["PaymentProcessorNotConfiguredError"] | components["schemas"]["RefundAmountExceedsPaymentError"];
+                };
+            };
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundDeclinedError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundInProgressError"];
+                };
+            };
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentProcessorTimeoutError"];
+                };
+            };
+        };
+    };
+    getRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentRefund"];
                 };
             };
             403: {

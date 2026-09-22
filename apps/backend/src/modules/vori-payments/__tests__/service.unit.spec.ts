@@ -291,6 +291,30 @@ describe("refunding a payment", () => {
     expect(POST.mock.calls[1][1].body.idempotency_key).toBe("pay_01jz8k:5.00:0")
   })
 
+  it("says a refund the processor never answered may have gone through, and retries it under the same key", async () => {
+    POST.mockResolvedValueOnce(
+      refused(504, "payment_processor_timeout", { payment_id: "pay_01jz8k", refund_id: "re_01" }),
+    )
+    POST.mockResolvedValueOnce(ok({ id: "re_01", status: "approved" }))
+
+    await expect(provider().refundPayment({ amount: 5, data: taken })).rejects.toThrow(
+      /may already have gone through/,
+    )
+    await provider().refundPayment({ amount: 5, data: taken })
+
+    expect(POST.mock.calls[1][1].body.idempotency_key).toBe(
+      POST.mock.calls[0][1].body.idempotency_key,
+    )
+  })
+
+  it("explains a refund still in flight", async () => {
+    POST.mockResolvedValue(refused(409, "refund_in_progress", { refund_id: "re_01" }))
+
+    await expect(provider().refundPayment({ amount: 5, data: taken })).rejects.toThrow(
+      /refund is still being processed/,
+    )
+  })
+
   it("sends nothing for a payment that was never taken through Vori", async () => {
     const result = await provider().refundPayment({
       amount: 12.49,

@@ -302,6 +302,25 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
         path: "/v1/refunds",
       })
     } catch (error) {
+      if (!(error instanceof VoriApiError)) throw error
+
+      const { processorMessage, refundId } = refusalDetails(error)
+      this.logger_.warn(
+        `vori-payments: refund ${refundId ?? request.idempotency_key} of ${paymentId} ` +
+          `failed with ${error.errorCode ?? error.status}` +
+          (processorMessage ? ` (${processorMessage})` : ""),
+      )
+
+      // Nothing is recorded, so a retry comes back with the same position in
+      // the list and therefore the same key, and learns what happened.
+      if (isUnconfirmedPayment(error)) {
+        throw new MedusaError(
+          MedusaError.Types.NOT_ALLOWED,
+          "The card processor did not answer, so this refund may already have gone through. " +
+            "Trying again checks the same refund rather than making a new one.",
+        )
+      }
+
       throw this.refusal(error, MedusaError.Types.NOT_ALLOWED)
     }
 
