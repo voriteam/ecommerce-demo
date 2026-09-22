@@ -399,7 +399,7 @@ export interface paths {
         put?: never;
         /**
          * Create a payment
-         * @description Charges a card your site or app tokenized in the browser, through the payment processor configured for the store. Retrying with the same `idempotency_key` returns the payment already taken instead of charging the card again, and answers a declined card with the same decline. If the processor does not answer, the payment keeps the status `pending` and this call returns a gateway timeout: retry with the same `idempotency_key` and a fresh token, and the retry answers with the outcome as soon as the processor confirms it, charging the card only if the first attempt never reached it.
+         * @description Charges a card your site or app tokenized in the browser, through the payment processor configured for the store. Retrying with the same `idempotency_key` returns the payment already taken instead of charging the card again, and answers a declined card with the same decline. If the processor does not answer, the payment keeps the status `pending` and this call returns a gateway timeout: retry with the same `idempotency_key` and the same token, and the retry answers with the outcome as soon as the processor confirms it, charging the card only if the first attempt never reached it.
          */
         post: operations["createPayment"];
         delete?: never;
@@ -443,7 +443,7 @@ export interface paths {
         put?: never;
         /**
          * Create a refund
-         * @description Gives money back from a payment taken through Vori. A refund of the whole payment within a day of the charge cancels it before it settles, and any other refund sends the money back to the card. Refunds are capped at what remains of the payment, and retrying with the same `idempotency_key` returns the refund already made instead of refunding again. If the processor does not answer, the refund keeps the status `pending` and this call returns a gateway timeout: the money may still have moved, so confirm the refund before making another one with a new `idempotency_key`.
+         * @description Gives money back from a payment taken through Vori. A refund of the whole payment within a day of the charge cancels it before it settles, and any other refund sends the money back to the card. Refunds are capped at what remains of the payment, and retrying with the same `idempotency_key` returns the refund already made instead of refunding again. If the processor does not answer, the refund keeps the status `pending` and this call returns a gateway timeout. The money may still have moved, so the refund goes on holding that part of the payment until someone establishes what became of it, and retrying the same `idempotency_key` reports it as still in progress.
          */
         post: operations["createRefund"];
         delete?: never;
