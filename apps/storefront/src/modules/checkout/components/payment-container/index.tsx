@@ -1,6 +1,13 @@
 import { Radio as RadioGroupOption } from "@headlessui/react"
 import { Text, clx } from "@modules/common/components/ui"
-import React, { useContext, useMemo, useRef, type JSX } from "react"
+import React, {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  type JSX,
+} from "react"
 
 import Radio from "@modules/common/components/radio"
 
@@ -150,7 +157,7 @@ export const VoriPaymentsCardContainer = ({
   const datacapReady = useContext(DatacapContext)
   const formRef = useRef<HTMLFormElement>(null)
 
-  const validate = () => {
+  const validate = useCallback(() => {
     const client = datacap()
     const form = formRef.current
     if (!client || !form) return setCardComplete(false)
@@ -164,7 +171,14 @@ export const VoriPaymentsCardContainer = ({
         client.validateExpirationDate(value("exp_month"), value("exp_year")) &&
         client.validateCVV(value("cvv"))
     )
-  }
+  }, [setCardComplete])
+
+  // Autofill does not always fire input events, so a filled form is checked
+  // as soon as it appears too.
+  const selected = selectedPaymentOptionId === paymentProviderId
+  useEffect(() => {
+    if (datacapReady && selected) validate()
+  }, [datacapReady, selected, validate])
 
   return (
     <PaymentContainer
@@ -179,6 +193,7 @@ export const VoriPaymentsCardContainer = ({
             id={VORI_PAYMENTS_FORM_ID}
             ref={formRef}
             onInput={validate}
+            onChange={validate}
             onSubmit={(event) => event.preventDefault()}
             className="my-4 flex flex-col gap-y-2 transition-all duration-150 ease-in-out"
             data-testid="vori-payments-card-form"

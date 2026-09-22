@@ -13,7 +13,7 @@ import { coveredByGiftCards } from "@lib/util/gift-card-payment"
 import { HttpTypes } from "@medusajs/types"
 import { Button } from "@modules/common/components/ui"
 import { useElements, useStripe } from "@stripe/react-stripe-js"
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import ErrorMessage from "../error-message"
 
 type PaymentButtonProps = {
@@ -215,9 +215,12 @@ const VoriPaymentsPaymentButton = ({
 }) => {
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [unconfirmed, setUnconfirmed] = useState(() =>
-    isUnconfirmed(cart, providerId)
-  )
+  // What our own post-failure read found, until the cart prop catches up.
+  const [checkedUnconfirmed, setCheckedUnconfirmed] = useState<
+    boolean | null
+  >(null)
+  useEffect(() => setCheckedUnconfirmed(null), [cart])
+  const unconfirmed = checkedUnconfirmed ?? isUnconfirmed(cart, providerId)
 
   const handlePayment = async () => {
     setSubmitting(true)
@@ -256,7 +259,7 @@ const VoriPaymentsPaymentButton = ({
       const declined =
         sessionData(latest, providerId)?.vori_payment_status === "declined"
 
-      setUnconfirmed(stillUnconfirmed)
+      setCheckedUnconfirmed(stillUnconfirmed)
       setErrorMessage(
         stillUnconfirmed
           ? unconfirmedPaymentMessage(
