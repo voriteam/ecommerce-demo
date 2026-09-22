@@ -256,7 +256,8 @@ const VoriPaymentsPaymentButton = ({
       // cart last said about an unconfirmed payment stands.
       const latest = await retrieveCart(
         cart.id,
-        "id,*payment_collection.payment_sessions"
+        "id,*payment_collection.payment_sessions",
+        { fresh: true }
       ).catch(() => null)
 
       if (!latest) {

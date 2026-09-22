@@ -19,9 +19,17 @@ import { getLocale } from "./locale-actions"
 /**
  * Retrieves a cart by its ID. If no ID is provided, it will use the cart ID from the cookies.
  * @param cartId - optional - The ID of the cart to retrieve.
+ * @param fields - optional - The fields to ask the backend for.
+ * @param options.fresh - optional - Skip the cache. A failed request leaves the
+ * cached cart in place, so a caller that has to know the cart's real state after
+ * one has to go past it.
  * @returns The cart object if found, or null if not found.
  */
-export async function retrieveCart(cartId?: string, fields?: string) {
+export async function retrieveCart(
+  cartId?: string,
+  fields?: string,
+  options?: { fresh?: boolean }
+) {
   const id = cartId || (await getCartId())
   fields ??=
     "*items, *region, *items.product, *items.variant, *items.thumbnail, *items.metadata, +items.total, *promotions, *credit_lines, +credit_line_total, +shipping_methods.name"
@@ -45,8 +53,9 @@ export async function retrieveCart(cartId?: string, fields?: string) {
         fields,
       },
       headers,
-      next,
-      cache: "force-cache",
+      ...(options?.fresh
+        ? { cache: "no-store" as const }
+        : { next, cache: "force-cache" as const }),
     })
     .then(({ cart }: { cart: HttpTypes.StoreCart }) => cart)
     .catch(() => null)
@@ -376,12 +385,16 @@ export async function setGiftCardRecipients(
   try {
     const cartId = await getCartId()
     if (!cartId) {
-      throw new Error("No existing cart found when setting gift card recipients")
+      throw new Error(
+        "No existing cart found when setting gift card recipients"
+      )
     }
 
     const cart = await retrieveCart()
     if (!cart) {
-      throw new Error("No existing cart found when setting gift card recipients")
+      throw new Error(
+        "No existing cart found when setting gift card recipients"
+      )
     }
 
     const headers = {
