@@ -4,12 +4,18 @@ import GiftCardPayment from "@modules/checkout/components/gift-card-payment"
 import { giftCardLabel, giftCardsOn } from "@lib/util/gift-card-payment"
 import { convertToLocale } from "@lib/util/money"
 import { RadioGroup } from "@headlessui/react"
-import { isStripeLike, paymentInfoMap } from "@lib/constants"
+import {
+  datacapTokenKey,
+  isStripeLike,
+  isVoriPayments,
+  paymentInfoMap,
+} from "@lib/constants"
 import { initiatePaymentSession } from "@lib/data/cart"
 import { CheckCircleSolid, CreditCard } from "@medusajs/icons"
 import ErrorMessage from "@modules/checkout/components/error-message"
 import PaymentContainer, {
   StripeCardContainer,
+  VoriPaymentsCardContainer,
 } from "@modules/checkout/components/payment-container"
 import Divider from "@modules/common/components/divider"
 import {
@@ -48,10 +54,21 @@ const Payment = ({
 
   const isOpen = searchParams.get("step") === "payment"
 
+  // Without a token key there is no way to read a card for Vori Payments.
+  const paymentMethods = availablePaymentMethods?.filter(
+    (method) => datacapTokenKey || !isVoriPayments(method.id)
+  )
+
+  const needsCard = (method: string) =>
+    isStripeLike(method) || isVoriPayments(method)
+
   const setPaymentMethod = async (method: string) => {
     setError(null)
     setSelectedPaymentMethod(method)
-    if (isStripeLike(method)) {
+    setCardComplete(false)
+    // Opened now rather than on continue: opening a session re-renders the
+    // checkout, which would clear a card form already filled in.
+    if (needsCard(method)) {
       await initiatePaymentSession(cart, {
         provider_id: method,
       })
@@ -156,15 +173,22 @@ const Payment = ({
               the need to choose one at all. */}
           <GiftCardPayment cart={cart} />
 
-          {!paidByGiftcard && availablePaymentMethods?.length && (
+          {!paidByGiftcard && paymentMethods?.length && (
             <>
               <RadioGroup
                 value={selectedPaymentMethod}
                 onChange={(value: string) => setPaymentMethod(value)}
               >
-                {availablePaymentMethods.map((paymentMethod) => (
+                {paymentMethods.map((paymentMethod) => (
                   <div key={paymentMethod.id}>
-                    {isStripeLike(paymentMethod.id) ? (
+                    {isVoriPayments(paymentMethod.id) ? (
+                      <VoriPaymentsCardContainer
+                        paymentProviderId={paymentMethod.id}
+                        selectedPaymentOptionId={selectedPaymentMethod}
+                        paymentInfoMap={paymentInfoMap}
+                        setCardComplete={setCardComplete}
+                      />
+                    ) : isStripeLike(paymentMethod.id) ? (
                       <StripeCardContainer
                         paymentProviderId={paymentMethod.id}
                         selectedPaymentOptionId={selectedPaymentMethod}
@@ -211,7 +235,7 @@ const Payment = ({
             onClick={handleSubmit}
             isLoading={isLoading}
             disabled={
-              (isStripeLike(selectedPaymentMethod) && !cardComplete) ||
+              (needsCard(selectedPaymentMethod) && !cardComplete) ||
               (!selectedPaymentMethod && !paidByGiftcard)
             }
             data-testid="submit-payment-button"
@@ -270,6 +294,8 @@ const Payment = ({
                   <Text>
                     {isStripeLike(selectedPaymentMethod) && cardBrand
                       ? cardBrand
+                      : isVoriPayments(selectedPaymentMethod)
+                      ? "Card"
                       : "Another step will appear"}
                   </Text>
                 </div>

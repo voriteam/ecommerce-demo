@@ -77,7 +77,9 @@ export type VoriOrderSnapshot = {
 }
 
 /**
- * Stripe's card brands, mapped onto the ones Vori accepts.
+ * Stripe's and Datacap's card brands, mapped onto the ones Vori accepts.
+ * Datacap abbreviates some (`M/C`, `DCVR`, `DCLB`), and lookups are made in
+ * lower case.
  *
  * Anything not in this table is left off the payment rather than guessed at.
  * `card_brand` only drives what a receipt and a report display, so an absent
@@ -86,10 +88,13 @@ export type VoriOrderSnapshot = {
 const CARD_BRANDS: Record<string, CreateTransactionCardBrand> = {
   amex: "american_express",
   american_express: "american_express",
+  dclb: "diners_club",
+  dcvr: "discover",
   diners: "diners_club",
   diners_club: "diners_club",
   discover: "discover",
   jcb: "jcb",
+  "m/c": "mastercard",
   mastercard: "mastercard",
   unionpay: "china_union_pay",
   visa: "visa",

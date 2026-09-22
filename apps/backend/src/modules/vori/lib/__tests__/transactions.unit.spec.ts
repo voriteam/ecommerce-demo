@@ -240,6 +240,13 @@ describe("a transaction", () => {
     expect(toVoriCardBrand("AMEX")).toBe("american_express")
     expect(toVoriCardBrand("unionpay")).toBe("china_union_pay")
   })
+
+  it("reads Datacap's abbreviated brands", () => {
+    expect(toVoriCardBrand("M/C")).toBe("mastercard")
+    expect(toVoriCardBrand("DCVR")).toBe("discover")
+    expect(toVoriCardBrand("DCLB")).toBe("diners_club")
+    expect(toVoriCardBrand("VISA")).toBe("visa")
+  })
 })
 
 describe("loyalty", () => {

@@ -3,6 +3,7 @@
 import { loadStripe } from "@stripe/stripe-js"
 import React from "react"
 import StripeWrapper from "./stripe-wrapper"
+import VoriPaymentsWrapper from "./vori-payments-wrapper"
 import { HttpTypes } from "@medusajs/types"
 import { isStripeLike } from "@lib/constants"
 
@@ -34,17 +35,23 @@ const PaymentWrapper: React.FC<PaymentWrapperProps> = ({ cart, children }) => {
     stripePromise
   ) {
     return (
-      <StripeWrapper
-        paymentSession={paymentSession}
-        stripeKey={stripeKey}
-        stripePromise={stripePromise}
-      >
-        {children}
-      </StripeWrapper>
+      <VoriPaymentsWrapper>
+        <StripeWrapper
+          paymentSession={paymentSession}
+          stripeKey={stripeKey}
+          stripePromise={stripePromise}
+        >
+          {children}
+        </StripeWrapper>
+      </VoriPaymentsWrapper>
     )
   }
 
-  return <div>{children}</div>
+  return (
+    <VoriPaymentsWrapper>
+      <div>{children}</div>
+    </VoriPaymentsWrapper>
+  )
 }
 
 export default PaymentWrapper

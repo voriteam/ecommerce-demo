@@ -1,7 +1,14 @@
 "use client"
 
-import { isManual, isStripeLike } from "@lib/constants"
-import { placeOrder } from "@lib/data/cart"
+import {
+  datacapTokenKey,
+  isManual,
+  isStripeLike,
+  isVoriPayments,
+  VORI_PAYMENTS_FORM_ID,
+} from "@lib/constants"
+import { initiatePaymentSession, placeOrder } from "@lib/data/cart"
+import { requestDatacapToken } from "@lib/util/datacap"
 import { coveredByGiftCards } from "@lib/util/gift-card-payment"
 import { HttpTypes } from "@medusajs/types"
 import { Button } from "@modules/common/components/ui"
@@ -36,6 +43,15 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
         <StripePaymentButton
           notReady={notReady}
           cart={cart}
+          data-testid={dataTestId}
+        />
+      )
+    case isVoriPayments(paymentSession?.provider_id):
+      return (
+        <VoriPaymentsPaymentButton
+          notReady={notReady}
+          cart={cart}
+          providerId={paymentSession!.provider_id}
           data-testid={dataTestId}
         />
       )
@@ -157,6 +173,72 @@ const StripePaymentButton = ({
       <ErrorMessage
         error={errorMessage}
         data-testid="stripe-payment-error-message"
+      />
+    </>
+  )
+}
+
+/**
+ * Tokenizes at the moment of paying rather than when the card is entered: a
+ * token pays once, so every attempt after a decline needs a fresh one, and a
+ * fresh session with it.
+ */
+const VoriPaymentsPaymentButton = ({
+  cart,
+  notReady,
+  providerId,
+  "data-testid": dataTestId,
+}: {
+  cart: HttpTypes.StoreCart
+  notReady: boolean
+  providerId: string
+  "data-testid"?: string
+}) => {
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const handlePayment = async () => {
+    setSubmitting(true)
+    setErrorMessage(null)
+
+    try {
+      const card = await requestDatacapToken(
+        datacapTokenKey,
+        VORI_PAYMENTS_FORM_ID
+      )
+
+      await initiatePaymentSession(cart, {
+        provider_id: providerId,
+        data: {
+          card_brand: card.Brand,
+          cart_id: cart.id,
+          last4: card.Last4,
+          token: card.Token,
+        },
+      })
+
+      await placeOrder()
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : String(error))
+    }
+
+    setSubmitting(false)
+  }
+
+  return (
+    <>
+      <Button
+        disabled={notReady}
+        isLoading={submitting}
+        onClick={handlePayment}
+        size="large"
+        data-testid={dataTestId}
+      >
+        Place order
+      </Button>
+      <ErrorMessage
+        error={errorMessage}
+        data-testid="vori-payments-error-message"
       />
     </>
   )

@@ -1,15 +1,17 @@
 import { Radio as RadioGroupOption } from "@headlessui/react"
 import { Text, clx } from "@modules/common/components/ui"
-import React, { useContext, useMemo, type JSX } from "react"
+import React, { useContext, useMemo, useRef, type JSX } from "react"
 
 import Radio from "@modules/common/components/radio"
 
-import { isManual } from "@lib/constants"
+import { isManual, VORI_PAYMENTS_FORM_ID } from "@lib/constants"
+import { datacap } from "@lib/util/datacap"
 import SkeletonCardDetails from "@modules/skeletons/components/skeleton-card-details"
 import { CardElement } from "@stripe/react-stripe-js"
 import { StripeCardElementOptions } from "@stripe/stripe-js"
 import PaymentTest from "../payment-test"
 import { StripeContext } from "../payment-wrapper/stripe-wrapper"
+import { DatacapContext } from "../payment-wrapper/vori-payments-wrapper"
 
 type PaymentContainerProps = {
   paymentProviderId: string
@@ -121,6 +123,107 @@ export const StripeCardContainer = ({
               }}
             />
           </div>
+        ) : (
+          <SkeletonCardDetails />
+        ))}
+    </PaymentContainer>
+  )
+}
+
+const cardInputClassName =
+  "pt-3 pb-1 block w-full h-11 px-4 mt-0 bg-ui-bg-field border rounded-md appearance-none focus:outline-none focus:ring-0 focus:shadow-borders-interactive-with-active border-ui-border-base hover:bg-ui-bg-field-hover transition-all duration-300 ease-in-out"
+
+/**
+ * The card form Datacap tokenizes. Datacap finds the fields by their
+ * `data-token` attribute and requires them to carry no `id` or `name`, which
+ * also keeps the browser from ever submitting them anywhere.
+ */
+export const VoriPaymentsCardContainer = ({
+  paymentProviderId,
+  selectedPaymentOptionId,
+  paymentInfoMap,
+  disabled = false,
+  setCardComplete,
+}: Omit<PaymentContainerProps, "children"> & {
+  setCardComplete: (complete: boolean) => void
+}) => {
+  const datacapReady = useContext(DatacapContext)
+  const formRef = useRef<HTMLFormElement>(null)
+
+  const validate = () => {
+    const client = datacap()
+    const form = formRef.current
+    if (!client || !form) return setCardComplete(false)
+
+    const value = (field: string) =>
+      form.querySelector<HTMLInputElement>(`[data-token="${field}"]`)?.value ??
+      ""
+
+    setCardComplete(
+      client.validateCardNumber(value("card_number")) &&
+        client.validateExpirationDate(value("exp_month"), value("exp_year")) &&
+        client.validateCVV(value("cvv"))
+    )
+  }
+
+  return (
+    <PaymentContainer
+      paymentProviderId={paymentProviderId}
+      selectedPaymentOptionId={selectedPaymentOptionId}
+      paymentInfoMap={paymentInfoMap}
+      disabled={disabled}
+    >
+      {selectedPaymentOptionId === paymentProviderId &&
+        (datacapReady ? (
+          <form
+            id={VORI_PAYMENTS_FORM_ID}
+            ref={formRef}
+            onInput={validate}
+            onSubmit={(event) => event.preventDefault()}
+            className="my-4 flex flex-col gap-y-2 transition-all duration-150 ease-in-out"
+            data-testid="vori-payments-card-form"
+          >
+            <Text className="txt-medium-plus text-ui-fg-base mb-1">
+              Enter your card details:
+            </Text>
+            <input
+              data-token="card_number"
+              aria-label="Card number"
+              placeholder="Card number"
+              inputMode="numeric"
+              autoComplete="cc-number"
+              className={cardInputClassName}
+            />
+            <div className="grid grid-cols-3 gap-x-2">
+              <input
+                data-token="exp_month"
+                aria-label="Expiry month"
+                placeholder="MM"
+                inputMode="numeric"
+                maxLength={2}
+                autoComplete="cc-exp-month"
+                className={cardInputClassName}
+              />
+              <input
+                data-token="exp_year"
+                aria-label="Expiry year"
+                placeholder="YYYY"
+                inputMode="numeric"
+                maxLength={4}
+                autoComplete="cc-exp-year"
+                className={cardInputClassName}
+              />
+              <input
+                data-token="cvv"
+                aria-label="Security code"
+                placeholder="CVV"
+                inputMode="numeric"
+                maxLength={4}
+                autoComplete="cc-csc"
+                className={cardInputClassName}
+              />
+            </div>
+          </form>
         ) : (
           <SkeletonCardDetails />
         ))}

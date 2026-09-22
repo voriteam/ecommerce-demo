@@ -457,6 +457,12 @@ export async function placeOrder(cartId?: string) {
     redirect(`/${countryCode}/order/${cartRes?.order.id}/confirmed`)
   }
 
+  // A payment the provider refused comes back as the cart plus an error, not
+  // as a failed request.
+  if (cartRes?.error?.message) {
+    throw new Error(cartRes.error.message)
+  }
+
   return cartRes.cart
 }
 

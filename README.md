@@ -368,6 +368,39 @@ stripe listen --forward-to localhost:9000/hooks/payment/stripe_stripe
 The Stripe payment intent ID is carried through to the Vori tender, so a sale in the grocer's books
 points back at the charge in Stripe.
 
+## Paying with Vori Payments
+
+Vori Payments takes the card through Vori instead of Stripe. The card is tokenized in the shopper's
+browser by Datacap's WebToken client, so the card number and security code never reach this
+server: only a one-time token, the brand and the last four do, and Vori turns the token into a sale
+with the store's processor. It needs the store's Datacap WebToken key on the storefront and the
+provider switched on in the backend:
+
+```bash
+# apps/backend/.env
+VORI_PAYMENTS_ENABLED=true
+
+# apps/storefront/.env.local
+NEXT_PUBLIC_DATACAP_TOKEN_KEY=...
+NEXT_PUBLIC_DATACAP_ENVIRONMENT=cert   # or production
+```
+
+Enable Vori Payments on the United States region under Settings > Regions in the admin. The store in
+`VORI_STORE_ID` needs Datacap Pay API credentials in Vori, and the token key has to belong to the
+same merchant. Against Datacap's test environment (`cert`), use Datacap's test card
+`4111111111111111` with any future expiry.
+
+Like every other write, the charge waits on `VORI_WRITE_ENABLED`. With writes off, checkout still
+completes and the request that would have been sent is kept on the payment, but nothing is charged.
+With them on, the recorded sale's card tender carries the Vori payment's `pay_...` ID, and cancelling
+the order refunds the card through Vori. A refund is keyed on the payment and its position among that
+payment's refunds, so a retried cancellation never refunds twice.
+
+Leave `NEXT_PUBLIC_DATACAP_TOKEN_KEY` empty and checkout does not offer Vori Payments at all.
+
+An `.env` at the repository root, left over from an earlier version of this demo, is read by nothing.
+The files that count are `apps/backend/.env` and `apps/storefront/.env.local`.
+
 ## Layout
 
 ```
@@ -375,6 +408,7 @@ apps/backend/src/modules/vori/     the Vori integration
   lib/                             the API contract: client, money, mapping, errors. No Medusa in it.
   models/vori-sync-state.ts        where inventory sync got to
   service.ts                       everything that talks to Vori
+apps/backend/src/modules/vori-payments/  the Vori Payments card payment provider
 apps/backend/src/workflows/vori/   seed the catalog, sync inventory, record an order
 apps/backend/src/jobs/             the inventory poll
 apps/backend/src/subscribers/      order.placed

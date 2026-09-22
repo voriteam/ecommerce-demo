@@ -1,6 +1,6 @@
 import { Container, Heading, Text } from "@modules/common/components/ui"
 
-import { isStripeLike, paymentInfoMap } from "@lib/constants"
+import { isStripeLike, isVoriPayments, paymentInfoMap } from "@lib/constants"
 import Divider from "@modules/common/components/divider"
 import { convertToLocale } from "@lib/util/money"
 import { giftCardLabel, giftCardsOn } from "@lib/util/gift-card-payment"
@@ -71,6 +71,8 @@ const PaymentDetails = ({ order }: PaymentDetailsProps) => {
             detail={
               isStripeLike(payment.provider_id) && payment.data?.card_last4
                 ? `**** **** **** ${payment.data.card_last4}`
+                : isVoriPayments(payment.provider_id) && payment.data?.last4
+                ? `**** **** **** ${payment.data.last4}`
                 : `${convertToLocale({
                     amount: payment.amount,
                     currency_code: order.currency_code,
