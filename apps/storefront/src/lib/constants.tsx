@@ -33,6 +33,10 @@ export const paymentInfoMap: Record<
     title: "Manual Payment",
     icon: <CreditCard />,
   },
+  "pp_vori-payments_vori": {
+    title: "Credit card (Vori Payments)",
+    icon: <CreditCard />,
+  },
   // Add more payment providers here
 }
 
@@ -49,6 +53,20 @@ export const isPaypal = (providerId?: string) => {
 export const isManual = (providerId?: string) => {
   return providerId?.startsWith("pp_system_default")
 }
+export const isVoriPayments = (providerId?: string) => {
+  return providerId?.startsWith("pp_vori-payments_")
+}
+
+// Public by design: a Datacap token key can only tokenize a card for its
+// merchant, never charge one.
+export const datacapTokenKey = process.env.NEXT_PUBLIC_DATACAP_TOKEN_KEY || ""
+
+export const datacapScriptUrl =
+  process.env.NEXT_PUBLIC_VORI_PAYMENTS_MODE === "live"
+    ? "https://token.dcap.com/v1/client"
+    : "https://token-cert.dcap.com/v1/client"
+
+export const VORI_PAYMENTS_FORM_ID = "vori-payments-card-form"
 
 // Add currencies that don't need to be divided by 100
 export const noDivisionCurrencies = [

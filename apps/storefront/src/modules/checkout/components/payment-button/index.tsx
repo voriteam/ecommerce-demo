@@ -1,12 +1,19 @@
 "use client"
 
-import { isManual, isStripeLike } from "@lib/constants"
-import { placeOrder } from "@lib/data/cart"
+import {
+  datacapTokenKey,
+  isManual,
+  isStripeLike,
+  isVoriPayments,
+  VORI_PAYMENTS_FORM_ID,
+} from "@lib/constants"
+import { initiatePaymentSession, placeOrder, retrieveCart } from "@lib/data/cart"
+import { requestDatacapToken } from "@lib/util/datacap"
 import { coveredByGiftCards } from "@lib/util/gift-card-payment"
 import { HttpTypes } from "@medusajs/types"
 import { Button } from "@modules/common/components/ui"
 import { useElements, useStripe } from "@stripe/react-stripe-js"
-import React, { useState } from "react"
+import React, { useEffect, useState } from "react"
 import ErrorMessage from "../error-message"
 
 type PaymentButtonProps = {
@@ -36,6 +43,15 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
         <StripePaymentButton
           notReady={notReady}
           cart={cart}
+          data-testid={dataTestId}
+        />
+      )
+    case isVoriPayments(paymentSession?.provider_id):
+      return (
+        <VoriPaymentsPaymentButton
+          notReady={notReady}
+          cart={cart}
+          providerId={paymentSession!.provider_id}
           data-testid={dataTestId}
         />
       )
@@ -157,6 +173,144 @@ const StripePaymentButton = ({
       <ErrorMessage
         error={errorMessage}
         data-testid="stripe-payment-error-message"
+      />
+    </>
+  )
+}
+
+const unconfirmedPaymentMessage = (paymentId: unknown) =>
+  "We could not confirm your payment, and your card may have been charged. " +
+  "Please do not pay again until the store confirms. Placing the order again " +
+  "checks the same payment rather than taking a new one." +
+  (typeof paymentId === "string"
+    ? ` If you contact the store, quote payment ${paymentId}.`
+    : "")
+
+const DECLINED_MESSAGE =
+  "Your card was declined. Check the details or try another card."
+
+const sessionData = (cart: HttpTypes.StoreCart | null, providerId: string) =>
+  cart?.payment_collection?.payment_sessions?.find(
+    (session) => session.provider_id === providerId
+  )?.data
+
+const isUnconfirmed = (cart: HttpTypes.StoreCart | null, providerId: string) =>
+  Boolean(sessionData(cart, providerId)?.vori_payment_unconfirmed_at)
+
+/**
+ * Tokenizes at the moment of paying rather than when the card is entered: a
+ * token pays once, so every attempt after a decline needs a fresh one, and a
+ * fresh session with it.
+ */
+const VoriPaymentsPaymentButton = ({
+  cart,
+  notReady,
+  providerId,
+  "data-testid": dataTestId,
+}: {
+  cart: HttpTypes.StoreCart
+  notReady: boolean
+  providerId: string
+  "data-testid"?: string
+}) => {
+  const [submitting, setSubmitting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  // What our own post-failure read found, until the cart prop catches up.
+  const [checkedUnconfirmed, setCheckedUnconfirmed] = useState<
+    boolean | null
+  >(null)
+  useEffect(() => setCheckedUnconfirmed(null), [cart])
+  const unconfirmed = checkedUnconfirmed ?? isUnconfirmed(cart, providerId)
+
+  const handlePayment = async () => {
+    setSubmitting(true)
+    setErrorMessage(null)
+
+    try {
+      // A new token would open a new session, and with it a new idempotency
+      // key: the unanswered payment has to be asked about again, not retaken.
+      if (unconfirmed) {
+        await placeOrder()
+        return
+      }
+
+      const card = await requestDatacapToken(
+        datacapTokenKey,
+        VORI_PAYMENTS_FORM_ID
+      )
+
+      await initiatePaymentSession(cart, {
+        provider_id: providerId,
+        data: {
+          card_brand: card.Brand,
+          cart_id: cart.id,
+          last4: card.Last4,
+          token: card.Token,
+        },
+      })
+
+      await placeOrder()
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      // Offline, this read fails too. Then nothing new is known, so what the
+      // cart last said about an unconfirmed payment stands.
+      const latest = await retrieveCart(
+        cart.id,
+        "id,*payment_collection.payment_sessions",
+        { fresh: true }
+      ).catch(() => null)
+
+      if (!latest) {
+        setErrorMessage(
+          unconfirmed
+            ? unconfirmedPaymentMessage(
+                sessionData(cart, providerId)?.vori_payment_id
+              )
+            : message
+        )
+        return
+      }
+
+      const stillUnconfirmed = isUnconfirmed(latest, providerId)
+      const declined =
+        sessionData(latest, providerId)?.vori_payment_status === "declined"
+
+      setCheckedUnconfirmed(stillUnconfirmed)
+      setErrorMessage(
+        stillUnconfirmed
+          ? unconfirmedPaymentMessage(
+              sessionData(latest, providerId)?.vori_payment_id
+            )
+          : declined
+          ? DECLINED_MESSAGE
+          : message
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <>
+      <Button
+        disabled={notReady}
+        isLoading={submitting}
+        onClick={handlePayment}
+        size="large"
+        data-testid={dataTestId}
+      >
+        Place order
+      </Button>
+      <ErrorMessage
+        error={
+          errorMessage ??
+          (unconfirmed
+            ? unconfirmedPaymentMessage(
+                sessionData(cart, providerId)?.vori_payment_id
+              )
+            : null)
+        }
+        data-testid="vori-payments-error-message"
       />
     </>
   )

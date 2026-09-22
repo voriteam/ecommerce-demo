@@ -1,3 +1,5 @@
+import type { components } from "./generated/schema"
+
 /**
  * Environment-driven configuration for the Vori integration.
  *
@@ -8,6 +10,8 @@
  * deliberately.
  */
 
+export type VoriPaymentsMode = components["schemas"]["PaymentMode"]
+
 export type VoriConfig = {
   apiKey: string | undefined
   baseUrl: string
@@ -16,6 +20,11 @@ export type VoriConfig = {
    * photography is unaffected - it arrives with the catalog either way.
    */
   openFoodFactsEnabled: boolean
+  /**
+   * Which of the store's processor accounts Vori Payments charges. A token
+   * minted against Datacap's test environment can only be charged in `test`.
+   */
+  paymentsMode: VoriPaymentsMode
   storeId: string | undefined
   syncCron: string
   syncEnabled: boolean
@@ -37,6 +46,7 @@ export const getVoriConfig = (): VoriConfig => ({
   apiKey: process.env.VORI_API_KEY || undefined,
   baseUrl: process.env.VORI_API_BASE_URL || "https://api.vori.com",
   openFoodFactsEnabled: bool(process.env.OPEN_FOOD_FACTS_ENABLED, true),
+  paymentsMode: process.env.VORI_PAYMENTS_MODE === "live" ? "live" : "test",
   storeId: process.env.VORI_STORE_ID || undefined,
   syncCron: process.env.VORI_SYNC_CRON || "*/2 * * * *",
   syncEnabled: bool(process.env.VORI_SYNC_ENABLED, true),

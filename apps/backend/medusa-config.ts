@@ -44,26 +44,36 @@ const redisModules = REDIS_URL
  * unregistered rather than registered broken, so the application still boots
  * and the catalog and inventory halves of the demo still work.
  */
-const paymentModule = process.env.STRIPE_API_KEY
+const stripeProviders = process.env.STRIPE_API_KEY
   ? [
       {
-        resolve: "@medusajs/medusa/payment",
+        resolve: "@medusajs/medusa/payment-stripe",
+        id: "stripe",
         options: {
-          providers: [
-            {
-              resolve: "@medusajs/medusa/payment-stripe",
-              id: "stripe",
-              options: {
-                apiKey: process.env.STRIPE_API_KEY,
-                webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-                capture: true,
-              },
-            },
-          ],
+          apiKey: process.env.STRIPE_API_KEY,
+          webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+          capture: true,
         },
       },
     ]
   : []
+
+/**
+ * Vori Payments is opt-in the same way. It charges only while Vori writes are
+ * on; with them off it records the request it would have sent and takes
+ * nothing.
+ */
+const voriPaymentsProviders =
+  process.env.VORI_PAYMENTS_ENABLED === "true"
+    ? [{ resolve: "./src/modules/vori-payments", id: "vori", options: getVoriConfig() }]
+    : []
+
+const paymentProviders = [...stripeProviders, ...voriPaymentsProviders]
+
+const paymentModule =
+  paymentProviders.length > 0
+    ? [{ resolve: "@medusajs/medusa/payment", options: { providers: paymentProviders } }]
+    : []
 
 module.exports = defineConfig({
   projectConfig: {

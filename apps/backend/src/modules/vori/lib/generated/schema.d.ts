@@ -384,6 +384,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List payments
+         * @description Lists the payments taken for the stores you can reach, newest first. Filter by store, status or mode, and page through the results with the cursor parameters.
+         */
+        get: operations["listPayments"];
+        put?: never;
+        /**
+         * Create a payment
+         * @description Charges a card your site or app tokenized in the browser, through the payment processor configured for the store. Retrying with the same `idempotency_key` returns the payment already taken instead of charging the card again, and answers a declined card with the same decline. If the processor does not answer, the payment keeps the status `pending` and this call returns a gateway timeout: retry with the same `idempotency_key` and the same token, and the retry answers with the outcome as soon as the processor confirms it, charging the card only if the first attempt never reached it.
+         */
+        post: operations["createPayment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/payments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve a payment
+         * @description Reads a payment back, including the `status` of the charge and the card it was taken from.
+         */
+        get: operations["getPayment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/refunds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List refunds
+         * @description Lists the refunds made for the stores you can reach, newest first. Filter by payment, store, status or mode, and page through the results with the cursor parameters.
+         */
+        get: operations["listRefunds"];
+        put?: never;
+        /**
+         * Create a refund
+         * @description Gives money back from a payment taken through Vori. A refund of the whole payment within a day of the charge cancels it before it settles, and any other refund sends the money back to the card. Refunds are capped at what remains of the payment, and retrying with the same `idempotency_key` returns the refund already made instead of refunding again. If the processor does not answer, the refund keeps the status `pending` and this call returns a gateway timeout. The money may still have moved, so the refund goes on holding that part of the payment until someone establishes what became of it, and retrying the same `idempotency_key` reports it as still in progress.
+         */
+        post: operations["createRefund"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/refunds/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve a refund
+         * @description Reads a refund back, including the `status` of the money going back and whether the payment was cancelled or returned.
+         */
+        get: operations["getRefund"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/shoppers": {
         parameters: {
             query?: never;
@@ -447,7 +535,7 @@ export interface paths {
         put?: never;
         /**
          * Create a store department
-         * @description Creates a department in a store. Pass `parent_department_id` to create a sub-department of an existing top-level department.
+         * @description Creates a department in a store. Pass `parent_department_id` to create a sub-department of an existing top-level department. The name must differ, ignoring case and surrounding spaces, from every other active department at the same level: the top-level departments of the store, or the sub-departments of the same parent. The check applies to this request; departments that already share a name are left as they are.
          */
         post: operations["createStoreDepartment"];
         delete?: never;
@@ -475,7 +563,7 @@ export interface paths {
         head?: never;
         /**
          * Update a store department
-         * @description Updates a department. Stamping `deactivated_at` deactivates it and setting it back to null reactivates it; a deactivated department is retained so reporting and past orders still resolve the department they name. A department is only deactivated once it has no active products and no active sub-departments.
+         * @description Updates a department. Stamping `deactivated_at` deactivates it and setting it back to null reactivates it; a deactivated department is retained so reporting and past orders still resolve the department they name. A department is only deactivated once it has no active products and no active sub-departments. Renaming, moving, or reactivating a department is rejected when another active department at its resulting level already has the name, ignoring case and surrounding spaces. An edit that leaves the name, parent, and active state alone is never rejected for the name, so a department that already shares one stays editable.
          */
         patch: operations["updateStoreDepartment"];
         trace?: never;
@@ -811,6 +899,17 @@ export interface components {
         };
         /** @enum {string} */
         CardBrand: "american_express" | "atm" | "bill_me_later" | "china_union_pay" | "debit" | "diners_club" | "discover" | "ebt" | "jcb" | "mastercard" | "other" | "revolution_money" | "telecheck" | "undetermined" | "visa" | "voyager" | "wright_express";
+        CardDeclinedError: {
+            /** @enum {string} */
+            error_code: "card_declined";
+            error_details: components["schemas"]["CardDeclinedErrorDetails"];
+        };
+        CardDeclinedErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+            /** @description What the payment processor said about the decline, in its own words. Null when it gave no reason. */
+            processor_message: string | null;
+        };
         CompactFoodModifierCategory: {
             id: string;
             /** @description Maximum number of options customer can select */
@@ -1229,6 +1328,60 @@ export interface components {
              */
             value: string;
         };
+        /** @description Gives money back from a payment taken through the Vori API, using the payment processor that took it. */
+        CreatePaymentRefundRequest: {
+            /**
+             * Format: positive-monetary
+             * @description Amount to return to the card, in dollars. Refund the full `amount` of the payment or any part of it.
+             * @example 199.99
+             */
+            amount: string;
+            /** @description Your own key for the refund, unique within the banner. Sending the same key again returns the refund already made rather than refunding twice. Up to 255 characters. */
+            idempotency_key: string;
+            /**
+             * @description Your own key/value pairs, stored with the transaction and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
+             * @example {
+             *       "order_source": "shopify",
+             *       "fulfillment_id": "88213"
+             *     }
+             */
+            metadata?: {
+                [key: string]: string;
+            } | null;
+            /** @description Whether money moves for real or not: `test` refunds in the payment processor's test environment and never moves money, and `live` makes an actual refund. It has to match the `mode` of the payment being refunded. */
+            mode: components["schemas"]["PaymentMode"];
+            /** @description ID of the payment to refund. The payment has to be `approved`, and what is refunded across all of its refunds can never exceed what was charged. */
+            payment_id: string;
+            /** @description ID of the store the payment was taken for. It has to be the same store that was charged. */
+            store_id: string;
+        };
+        /** @description Charges a card that your site or app tokenized in the browser, using the payment processor configured for the store. */
+        CreatePaymentRequest: {
+            /**
+             * Format: positive-monetary
+             * @description Amount charged to the card, in dollars.
+             * @example 199.99
+             */
+            amount: string;
+            /** @description Your own key for the charge, unique within the banner. Sending the same key again returns the payment already taken rather than charging the card twice. Up to 255 characters. */
+            idempotency_key: string;
+            /**
+             * @description Your own key/value pairs, stored with the transaction and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
+             * @example {
+             *       "order_source": "shopify",
+             *       "fulfillment_id": "88213"
+             *     }
+             */
+            metadata?: {
+                [key: string]: string;
+            } | null;
+            /** @description Whether the card is charged for real or not: `test` charges the payment processor's test environment and never moves money, and `live` takes an actual payment. */
+            mode: components["schemas"]["PaymentMode"];
+            /** @description ID of the store to charge the card for. The charge settles to the processor account configured for that store. */
+            store_id: string;
+            /** @description One-time token returned by the hosted tokenizer for the card being charged. A token is good for a single charge, so a new payment needs a new one. Retrying a payment that timed out may send the token it already has, which is only used if the charge never reached the processor. */
+            token: string;
+        };
         /** @description A product returned on a refund being recorded, with the quantity or weight coming back, the price it sold at, and the savings, fees, and tax being reversed with it. */
         CreateRefundLineItem: {
             /**
@@ -1406,7 +1559,6 @@ export interface components {
             alcohol_by_volume?: string | null;
             barcode: string;
             brand?: string | null;
-            case_size?: number | null;
             country_of_origin?: string | null;
             department_id: string;
             description?: string | null;
@@ -1761,6 +1913,10 @@ export interface components {
             duplicates: components["schemas"]["DuplicateBarcodeDetail"][];
             /** @enum {string} */
             error_code: "duplicate_barcodes";
+        };
+        DuplicateDepartmentNameError: {
+            /** @enum {string} */
+            error_code: "duplicate_department_name";
         };
         DuplicateHouseAccountShopperFacingIDError: {
             /** @enum {string} */
@@ -2168,6 +2324,19 @@ export interface components {
             /** @enum {string} */
             error_code: "invalid_parent_department";
         };
+        InvalidPaymentModeError: {
+            /** @enum {string} */
+            error_code: "invalid_payment_mode";
+            error_details: components["schemas"]["InvalidPaymentModeErrorDetails"];
+        };
+        InvalidPaymentModeErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+            /** @description Mode the payment was taken in. */
+            payment_mode: components["schemas"]["PaymentMode"];
+            /** @description Mode the refund asked for. */
+            requested_mode: components["schemas"]["PaymentMode"];
+        };
         InvalidStoreError: {
             /** @enum {string} */
             error_code: "invalid_store";
@@ -2217,7 +2386,7 @@ export interface components {
             value: string;
         };
         /** @enum {string} */
-        InventoryUpdateReasonType: "shrink_damage" | "shrink_donation" | "shrink_other" | "shrink_spoilage" | "shrink_theft";
+        InventoryUpdateReasonType: "shrink_damage" | "shrink_donation" | "shrink_other" | "shrink_sample" | "shrink_spoilage" | "shrink_store_use" | "shrink_theft";
         /** @enum {string} */
         InventoryUpdateType: "adjustment" | "set";
         ItemCodeIdentifier: {
@@ -2329,6 +2498,186 @@ export interface components {
             /** @enum {string} */
             error_code: "no_banner_association";
         };
+        /** @description A card payment taken through the Vori API on behalf of a store. One payment is one charge attempt, and a payment is never edited once the processor has answered. */
+        Payment: {
+            /** @description Unique identifier for the record. */
+            id: string;
+            /**
+             * Format: positive-monetary
+             * @description Amount charged to the card, in dollars.
+             * @example 199.99
+             */
+            amount: string;
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            created_at: string;
+            /** @description Your own key for the charge, unique within the banner. Sending the same key again returns the payment already taken rather than charging the card twice. Up to 255 characters. */
+            idempotency_key: string;
+            /**
+             * @description Your own key/value pairs, exactly as supplied when the payment was taken.
+             * @example {
+             *       "order_source": "shopify",
+             *       "fulfillment_id": "88213"
+             *     }
+             */
+            metadata: {
+                [key: string]: string;
+            } | null;
+            /** @description Whether the card is charged for real or not: `test` charges the payment processor's test environment and never moves money, and `live` takes an actual payment. */
+            mode: components["schemas"]["PaymentMode"];
+            /** @description The card the payment was taken from. */
+            payment_method: components["schemas"]["PaymentMethod"];
+            /** @description The payment processor that handled the charge, which is the one configured for the store. */
+            processor: components["schemas"]["PaymentProcessor"];
+            /** @description Where the charge stands: `approved` once the card was charged, `declined` when the card was refused, and `pending` while the outcome is still unknown. Read the payment back to see a `pending` payment settle. */
+            status: components["schemas"]["PaymentStatus"];
+            /** @description ID of the store the payment was taken for. */
+            store_id: string;
+            /**
+             * Format: date-time
+             * @description When the record was last changed.
+             */
+            updated_at: string;
+        };
+        PaymentInProgressError: {
+            /** @enum {string} */
+            error_code: "payment_in_progress";
+            error_details: components["schemas"]["PaymentInProgressErrorDetails"];
+        };
+        PaymentInProgressErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+        };
+        PaymentList: {
+            data: components["schemas"]["Payment"][];
+            /** @description Whether more records follow this page. */
+            has_more: boolean;
+        };
+        PaymentMerchantAccountChangedError: {
+            /** @enum {string} */
+            error_code: "payment_merchant_account_changed";
+            error_details: components["schemas"]["PaymentMerchantAccountChangedErrorDetails"];
+        };
+        PaymentMerchantAccountChangedErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+            /** @description ID of the store whose payment processor account changed. */
+            store_id: string;
+        };
+        /** @description The card a payment was taken from, as the processor saw it. */
+        PaymentMethod: {
+            /** @description Card brand the processor reported. Null until the processor answers. */
+            brand: components["schemas"]["CardBrand"] | null;
+            /**
+             * @description Last four digits of the card, safe to show on a receipt. Null until the processor answers.
+             * @example 1111
+             */
+            last4: string | null;
+            /** @description How the payment was made. Cards are the only method today. */
+            type: components["schemas"]["PaymentTenderType"];
+        };
+        PaymentMissingProcessorTokenError: {
+            /** @enum {string} */
+            error_code: "payment_missing_processor_token";
+            error_details: components["schemas"]["PaymentMissingProcessorTokenErrorDetails"];
+        };
+        PaymentMissingProcessorTokenErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+        };
+        /** @enum {string} */
+        PaymentMode: "live" | "test";
+        PaymentNotRefundableError: {
+            /** @enum {string} */
+            error_code: "payment_not_refundable";
+            error_details: components["schemas"]["PaymentNotRefundableErrorDetails"];
+        };
+        PaymentNotRefundableErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+            /** @description Status the payment is in, which is not one a refund allows. */
+            status: components["schemas"]["PaymentStatus"];
+        };
+        /** @enum {string} */
+        PaymentProcessor: "datacap";
+        PaymentProcessorNotConfiguredError: {
+            /** @enum {string} */
+            error_code: "payment_processor_not_configured";
+            error_details: components["schemas"]["PaymentProcessorNotConfiguredErrorDetails"];
+        };
+        PaymentProcessorNotConfiguredErrorDetails: {
+            /** @description ID of the store that has no payment processor. */
+            store_id: string;
+        };
+        PaymentProcessorTimeoutError: {
+            /** @enum {string} */
+            error_code: "payment_processor_timeout";
+            error_details: components["schemas"]["PaymentProcessorTimeoutErrorDetails"];
+        };
+        PaymentProcessorTimeoutErrorDetails: {
+            /** @description ID of the payment the error is about. */
+            payment_id: string;
+            /** @description ID of the refund the error is about, when the processor was answering about a refund of the payment. */
+            refund_id?: string;
+        };
+        /** @description A refund of a card payment taken through the Vori API. One refund is one attempt to give money back, and a refund is never edited once the processor has answered. */
+        PaymentRefund: {
+            /** @description Unique identifier for the record. */
+            id: string;
+            /**
+             * Format: positive-monetary
+             * @description Amount returned to the card, in dollars.
+             * @example 199.99
+             */
+            amount: string;
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            created_at: string;
+            /** @description Your own key for the refund, unique within the banner. Sending the same key again returns the refund already made rather than refunding twice. Up to 255 characters. */
+            idempotency_key: string;
+            /**
+             * @description Your own key/value pairs, exactly as supplied when the refund was made.
+             * @example {
+             *       "order_source": "shopify",
+             *       "fulfillment_id": "88213"
+             *     }
+             */
+            metadata: {
+                [key: string]: string;
+            } | null;
+            /** @description Whether money moves for real or not: `test` refunds in the payment processor's test environment and never moves money, and `live` makes an actual refund. It has to match the `mode` of the payment being refunded. */
+            mode: components["schemas"]["PaymentMode"];
+            /** @description ID of the payment being refunded. */
+            payment_id: string;
+            /** @description The payment processor that handled the refund, which is the one that took the payment. */
+            processor: components["schemas"]["PaymentProcessor"];
+            /** @description Where the refund stands: `approved` once the money was sent back, `declined` when the processor refused it, and `pending` while the outcome is still unknown. Read the refund back to see a `pending` refund settle. */
+            status: components["schemas"]["PaymentStatus"];
+            /** @description ID of the store the refund was made for. */
+            store_id: string;
+            /** @description How the money was given back: `void` cancels the charge before it settles, and `return` sends money back to the card. Vori picks whichever the payment still allows. */
+            type: components["schemas"]["PaymentRefundType"];
+            /**
+             * Format: date-time
+             * @description When the record was last changed.
+             */
+            updated_at: string;
+        };
+        PaymentRefundList: {
+            data: components["schemas"]["PaymentRefund"][];
+            /** @description Whether more records follow this page. */
+            has_more: boolean;
+        };
+        /** @enum {string} */
+        PaymentRefundType: "return" | "void";
+        /** @enum {string} */
+        PaymentStatus: "approved" | "declined" | "pending";
+        /** @enum {string} */
+        PaymentTenderType: "card";
         /** @enum {string} */
         PersistableVendorProductStatus: "AVAILABLE" | "DISCONTINUED" | "UNAVAILABLE";
         PhysicalGiftCardDisassociationMissingOwnerError: {
@@ -2348,6 +2697,21 @@ export interface components {
         PurchaseOrderLineItemUnitOfMeasure: "CASE" | "EACH" | "LB";
         /** @enum {string} */
         ReceiptType: "email" | "print" | "sms";
+        RefundAmountExceedsPaymentError: {
+            /** @enum {string} */
+            error_code: "refund_amount_exceeds_payment";
+        };
+        RefundDeclinedError: {
+            /** @enum {string} */
+            error_code: "refund_declined";
+            error_details: components["schemas"]["RefundDeclinedErrorDetails"];
+        };
+        RefundDeclinedErrorDetails: {
+            /** @description What the payment processor said about the refusal, in its own words. Null when it gave no reason. */
+            processor_message: string | null;
+            /** @description ID of the refund the error is about. */
+            refund_id: string;
+        };
         /** @enum {string} */
         RefundExceedsField: "line_discount_total" | "line_item_modifier_total" | "line_promo_savings" | "line_quantity" | "line_tax_total" | "line_taxable_amount" | "line_total" | "line_weight" | "payment_amount";
         RefundExceedsOriginalError: {
@@ -2363,6 +2727,15 @@ export interface components {
             transaction_line_item_id?: string;
             /** Format: uuid */
             transaction_payment_id?: string;
+        };
+        RefundInProgressError: {
+            /** @enum {string} */
+            error_code: "refund_in_progress";
+            error_details: components["schemas"]["RefundInProgressErrorDetails"];
+        };
+        RefundInProgressErrorDetails: {
+            /** @description ID of the refund the error is about. */
+            refund_id: string;
         };
         RefundLineItemsNotFoundError: {
             /** @enum {string} */
@@ -2393,7 +2766,7 @@ export interface components {
             transaction_id: string;
         };
         /** @enum {string} */
-        Resource: "*" | "accounting_integration" | "agent_chats" | "api_clients" | "asynchronous_tasks" | "banners" | "blackhawk_transactions" | "capabilities" | "coupons" | "custom_quick_actions" | "datacap_transactions" | "departments" | "discounts" | "ditto_auth_tokens" | "edge_agents" | "electronic_shelf_labels" | "employees" | "feature_orientations" | "files" | "food_modifiers" | "gift_cards" | "gl_code_mappings" | "house_accounts" | "inventory" | "inventory_sessions" | "inventory_settings" | "invoices" | "item_modifiers" | "label_dimension_sets" | "label_sheet_profiles" | "label_stock_products" | "lanes" | "loyalty_bonuses" | "loyalty_campaigns" | "loyalty_rewards" | "notification_templates" | "offers" | "order_guides" | "pos_banner_configurations" | "pos_orders" | "pos_tills" | "price_tags" | "product_ranges" | "products" | "promotions" | "purchase_orders" | "receiving" | "reporting" | "revision_sessions" | "revisions" | "roles" | "shopper_tags" | "shoppers" | "store_product_inventory_counts" | "store_product_lots" | "store_product_rules" | "store_product_tag_templates" | "store_snap_incentive_program_coupons" | "store_vendor_merge_requests" | "store_vendor_product_merge_requests" | "store_vendor_products" | "store_vendors" | "stores" | "tag_printings" | "tag_template_presets" | "tag_templates" | "tax_rates" | "users" | "variable_weights" | "vendor_merge_requests" | "vendor_product_merge_requests" | "vendors" | "wallet_payments" | "wic_products";
+        Resource: "*" | "accounting_integration" | "agent_chats" | "api_clients" | "asynchronous_tasks" | "banners" | "blackhawk_transactions" | "business_entities" | "capabilities" | "coupons" | "custom_quick_actions" | "datacap_transactions" | "departments" | "discounts" | "ditto_auth_tokens" | "edge_agents" | "electronic_shelf_labels" | "employees" | "feature_orientations" | "files" | "food_modifiers" | "gift_cards" | "gl_code_mappings" | "house_accounts" | "inventory" | "inventory_sessions" | "inventory_settings" | "invoices" | "item_modifiers" | "label_dimension_sets" | "label_sheet_profiles" | "label_stock_products" | "lanes" | "loyalty_bonuses" | "loyalty_campaigns" | "loyalty_rewards" | "notification_templates" | "offers" | "order_guides" | "payments" | "people" | "pos_banner_configurations" | "pos_orders" | "pos_tills" | "price_tags" | "product_ranges" | "products" | "promotions" | "purchase_orders" | "receiving" | "reporting" | "revision_sessions" | "revisions" | "roles" | "shopper_tags" | "shoppers" | "store_product_inventory_counts" | "store_product_lots" | "store_product_rules" | "store_product_tag_templates" | "store_snap_incentive_program_coupons" | "store_vendor_merge_requests" | "store_vendor_product_merge_requests" | "store_vendor_products" | "store_vendors" | "stores" | "tag_printings" | "tag_template_presets" | "tag_templates" | "tax_rates" | "users" | "variable_weights" | "vendor_merge_requests" | "vendor_product_merge_requests" | "vendors" | "wallet_payments" | "wic_products";
         /** @enum {string} */
         RoleName: "everyone" | "manager";
         /** @description A person a store can recognize at checkout, whether as a loyalty member or as the holder of a gift card. A shopper belongs to the banner rather than to any one store. */
@@ -3562,7 +3935,6 @@ export interface components {
             alcohol_by_volume?: string | null;
             barcode?: string;
             brand?: string | null;
-            case_size?: number | null;
             country_of_origin?: string | null;
             department_id?: string;
             description?: string | null;
@@ -5149,6 +5521,300 @@ export interface operations {
             };
         };
     };
+    listPayments: {
+        parameters: {
+            query?: {
+                /** @description Return records that precede the record with this ID, in list order. */
+                ending_before?: string;
+                /** @description Maximum number of records to return. */
+                limit?: number;
+                /** @description Whether the card is charged for real or not: `test` charges the payment processor's test environment and never moves money, and `live` takes an actual payment. Repeat to match any of up to 20 values. */
+                mode?: ("live" | "test")[];
+                /** @description Return records that follow the record with this ID, in list order. */
+                starting_after?: string;
+                /** @description Where the charge stands: `approved` once the card was charged, `declined` when the card was refused, and `pending` while the outcome is still unknown. Read the payment back to see a `pending` payment settle. Repeat to match any of up to 20 values. */
+                status?: ("approved" | "declined" | "pending")[];
+                /** @description ID of the store the payment was taken for. Repeat to match any of up to 20 values. */
+                store_id?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictingListParametersError"] | components["schemas"]["InvalidListCursorError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    createPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePaymentRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateIdempotencyKeyError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["PaymentProcessorNotConfiguredError"];
+                };
+            };
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardDeclinedError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentInProgressError"];
+                };
+            };
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentProcessorTimeoutError"];
+                };
+            };
+        };
+    };
+    getPayment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Payment"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listRefunds: {
+        parameters: {
+            query?: {
+                /** @description Return records that precede the record with this ID, in list order. */
+                ending_before?: string;
+                /** @description Maximum number of records to return. */
+                limit?: number;
+                /** @description Whether money moves for real or not: `test` refunds in the payment processor's test environment and never moves money, and `live` makes an actual refund. It has to match the `mode` of the payment being refunded. Repeat to match any of up to 20 values. */
+                mode?: ("live" | "test")[];
+                /** @description ID of the payment being refunded. Accepts a TypeID or a UUID. Repeat to match any of up to 20 values. */
+                payment_id?: string[];
+                /** @description Return records that follow the record with this ID, in list order. */
+                starting_after?: string;
+                /** @description Where the refund stands: `approved` once the money was sent back, `declined` when the processor refused it, and `pending` while the outcome is still unknown. Read the refund back to see a `pending` refund settle. Repeat to match any of up to 20 values. */
+                status?: ("approved" | "declined" | "pending")[];
+                /** @description ID of the store the refund was made for. Repeat to match any of up to 20 values. */
+                store_id?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentRefundList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictingListParametersError"] | components["schemas"]["InvalidListCursorError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    createRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePaymentRefundRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentRefund"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateIdempotencyKeyError"] | components["schemas"]["InvalidPaymentModeError"] | components["schemas"]["InvalidStoreError"] | components["schemas"]["PaymentMerchantAccountChangedError"] | components["schemas"]["PaymentMissingProcessorTokenError"] | components["schemas"]["PaymentNotRefundableError"] | components["schemas"]["PaymentProcessorNotConfiguredError"] | components["schemas"]["RefundAmountExceedsPaymentError"];
+                };
+            };
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundDeclinedError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RefundInProgressError"];
+                };
+            };
+            504: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentProcessorTimeoutError"];
+                };
+            };
+        };
+    };
+    getRefund: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentRefund"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     listShoppers: {
         parameters: {
             query?: {
@@ -5422,7 +6088,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidStoreError"] | components["schemas"]["InvalidParentDepartmentError"] | components["schemas"]["InvalidDepartmentHierarchyError"];
+                    "application/json": components["schemas"]["InvalidStoreError"] | components["schemas"]["InvalidParentDepartmentError"] | components["schemas"]["InvalidDepartmentHierarchyError"] | components["schemas"]["DuplicateDepartmentNameError"];
                 };
             };
             403: {
@@ -5498,7 +6164,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidParentDepartmentError"] | components["schemas"]["InvalidDepartmentHierarchyError"] | components["schemas"]["DepartmentHasActiveProductsError"] | components["schemas"]["DepartmentHasActiveSubDepartmentsError"];
+                    "application/json": components["schemas"]["InvalidParentDepartmentError"] | components["schemas"]["InvalidDepartmentHierarchyError"] | components["schemas"]["DepartmentHasActiveProductsError"] | components["schemas"]["DepartmentHasActiveSubDepartmentsError"] | components["schemas"]["DuplicateDepartmentNameError"];
                 };
             };
             403: {
