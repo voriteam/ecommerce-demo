@@ -402,6 +402,12 @@ With them on, the recorded sale's card tender carries the Vori payment's `pay_..
 the order refunds the card through Vori. A refund is keyed on the payment and its position among that
 payment's refunds, so a retried cancellation never refunds twice.
 
+If the card processor does not answer, checkout says the payment may have gone through and asks the
+shopper not to pay again, quoting the payment's reference. Placing the order again asks Vori about
+that same payment rather than taking a new one, so it completes if the charge went through. A payment
+left unconfirmed belongs to no order, so cancelling refunds nothing: the store settles it from that
+reference, and Vori will not refund a payment it never approved.
+
 Leave `NEXT_PUBLIC_DATACAP_TOKEN_KEY` empty and checkout does not offer Vori Payments at all.
 
 An `.env` at the repository root, left over from an earlier version of this demo, is read by nothing.
