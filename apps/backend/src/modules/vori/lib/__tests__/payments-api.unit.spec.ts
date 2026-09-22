@@ -51,6 +51,12 @@ describe("building a payment", () => {
     )
   })
 
+  it("refuses a key longer than Vori accepts", () => {
+    expect(() =>
+      buildCreatePaymentRequest({ ...sale, sessionId: "payses_".padEnd(256, "x") }),
+    ).toThrow(PaymentBuildError)
+  })
+
   it("refuses a zero or fractional amount", () => {
     expect(() => buildCreatePaymentRequest({ ...sale, amountCents: 0 })).toThrow(PaymentBuildError)
     expect(() => buildCreatePaymentRequest({ ...sale, amountCents: 1.5 })).toThrow(

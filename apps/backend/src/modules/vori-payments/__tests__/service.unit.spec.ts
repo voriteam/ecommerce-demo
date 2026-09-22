@@ -51,7 +51,7 @@ const approvedPayment = {
   amount: "12.49",
   id: "pay_01jz8k",
   mode: "test",
-  payment_method: { brand: "visa", masked_account_number: "XXXXXXXXXXXX1111", type: "card" },
+  payment_method: { brand: "visa", last4: "1111", type: "card" },
   status: "approved",
 }
 

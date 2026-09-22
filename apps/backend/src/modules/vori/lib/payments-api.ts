@@ -18,6 +18,17 @@ export type CreateVoriPaymentRefundRequest = components["schemas"]["CreatePaymen
 
 export class PaymentBuildError extends Error {}
 
+const MAX_IDEMPOTENCY_KEY_LENGTH = 255
+
+const assertKeyFits = (key: string): string => {
+  if (key.length > MAX_IDEMPOTENCY_KEY_LENGTH) {
+    throw new PaymentBuildError(
+      `Idempotency key "${key}" is ${key.length} characters, and Vori accepts ${MAX_IDEMPOTENCY_KEY_LENGTH}.`,
+    )
+  }
+  return key
+}
+
 export type RecordedRefund = {
   amount_cents: number
   /** Absent when there was no Vori payment to refund. */
@@ -57,7 +68,7 @@ export const buildCreatePaymentRequest = (args: {
 
   return {
     amount: centsToDecimal(args.amountCents),
-    idempotency_key: args.sessionId,
+    idempotency_key: assertKeyFits(args.sessionId),
     ...(args.cartId ? { metadata: { medusa_cart_id: args.cartId } } : {}),
     mode: args.mode,
     store_id: args.storeId,
@@ -72,7 +83,7 @@ export const buildCreatePaymentRequest = (args: {
  * Vori did make returns it instead of refunding twice.
  */
 export const refundIdempotencyKey = (paymentId: string, amountCents: number, index: number) =>
-  `${paymentId}:${centsToDecimal(amountCents)}:${index}`
+  assertKeyFits(`${paymentId}:${centsToDecimal(amountCents)}:${index}`)
 
 export const buildCreateRefundRequest = (args: {
   amountCents: number

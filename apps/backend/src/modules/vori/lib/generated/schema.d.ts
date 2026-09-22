@@ -1336,7 +1336,7 @@ export interface components {
              * @example 199.99
              */
             amount: string;
-            /** @description Your own key for the refund, unique within the banner. Sending the same key again returns the refund already made rather than refunding twice. */
+            /** @description Your own key for the refund, unique within the banner. Sending the same key again returns the refund already made rather than refunding twice. Up to 255 characters. */
             idempotency_key: string;
             /**
              * @description Your own key/value pairs, stored with the transaction and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
@@ -1363,7 +1363,7 @@ export interface components {
              * @example 199.99
              */
             amount: string;
-            /** @description Your own key for the charge, unique within the banner. Sending the same key again returns the payment already taken rather than charging the card twice. */
+            /** @description Your own key for the charge, unique within the banner. Sending the same key again returns the payment already taken rather than charging the card twice. Up to 255 characters. */
             idempotency_key: string;
             /**
              * @description Your own key/value pairs, stored with the transaction and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
@@ -2513,7 +2513,7 @@ export interface components {
              * @description When the record was created.
              */
             created_at: string;
-            /** @description Your own key for the charge, unique within the banner. Sending the same key again returns the payment already taken rather than charging the card twice. */
+            /** @description Your own key for the charge, unique within the banner. Sending the same key again returns the payment already taken rather than charging the card twice. Up to 255 characters. */
             idempotency_key: string;
             /**
              * @description Your own key/value pairs, exactly as supplied when the payment was taken.
@@ -2570,8 +2570,11 @@ export interface components {
         PaymentMethod: {
             /** @description Card brand the processor reported. Null until the processor answers. */
             brand: components["schemas"]["CardBrand"] | null;
-            /** @description Card number as the processor masked it, safe to show on a receipt. Null until the processor answers. */
-            masked_account_number: string | null;
+            /**
+             * @description Last four digits of the card, safe to show on a receipt. Null until the processor answers.
+             * @example 1111
+             */
+            last4: string | null;
             /** @description How the payment was made. Cards are the only method today. */
             type: components["schemas"]["PaymentTenderType"];
         };
@@ -2625,7 +2628,7 @@ export interface components {
              * @description When the record was created.
              */
             created_at: string;
-            /** @description Your own key for the refund, unique within the banner. Sending the same key again returns the refund already made rather than refunding twice. */
+            /** @description Your own key for the refund, unique within the banner. Sending the same key again returns the refund already made rather than refunding twice. Up to 255 characters. */
             idempotency_key: string;
             /**
              * @description Your own key/value pairs, exactly as supplied when the refund was made.

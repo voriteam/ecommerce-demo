@@ -211,7 +211,7 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
     }
 
     const brand = payment.payment_method?.brand ?? data.card_brand
-    const last4 = payment.payment_method?.masked_account_number?.slice(-4) ?? data.last4
+    const last4 = payment.payment_method?.last4 ?? data.last4
 
     return {
       data: {
