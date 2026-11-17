@@ -406,7 +406,7 @@ If the card processor does not answer, checkout says the payment may have gone t
 shopper not to pay again, quoting the payment's reference. Placing the order again asks Vori about
 that same payment rather than taking a new one, so it completes if the charge went through. A payment
 left unconfirmed belongs to no order, so cancelling refunds nothing: the store settles it from that
-reference, and Vori will not refund a payment it never approved.
+reference, and Vori will not refund a payment it never took.
 
 Leave `NEXT_PUBLIC_DATACAP_TOKEN_KEY` empty and checkout does not offer Vori Payments at all.
 
@@ -436,6 +436,10 @@ pnpm generate:client
 
 It reads <https://api.vori.com/openapi.json>. Point `VORI_OPENAPI_SPEC` at a file to build against a
 description that has not been published yet.
+
+Payments and refunds are the exception. Vori serves them only to banners the API is turned on for and
+leaves them out of that description, so `lib/payments-api.ts` describes those four endpoints itself
+and takes what they share with the rest of the API from the generated client.
 
 ## Tests
 

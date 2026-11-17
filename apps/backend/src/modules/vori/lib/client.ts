@@ -4,6 +4,7 @@ import type { paths } from "./generated/schema"
 
 import { getVoriConfig, type VoriConfig } from "./config"
 import { VoriApiError } from "./errors"
+import type { VoriPaymentsPaths } from "./payments-api"
 import { assertServerOnly } from "./server-only"
 
 /**
@@ -112,7 +113,7 @@ export const createVoriClient = (options?: { config?: VoriConfig; logger?: VoriL
     throw new Error("VORI_API_KEY is not set; the Vori client cannot be created without it")
   }
 
-  const client = createClient<paths>({
+  const client = createClient<paths & VoriPaymentsPaths>({
     baseUrl: config.baseUrl,
     fetch: buildFetch(logger),
     headers: {

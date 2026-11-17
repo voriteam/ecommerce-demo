@@ -52,7 +52,7 @@ const approvedPayment = {
   id: "pay_01jz8k",
   mode: "test",
   payment_method: { brand: "visa", last4: "1111", type: "card" },
-  status: "approved",
+  status: "captured",
 }
 
 beforeEach(() => {
@@ -122,7 +122,7 @@ describe("authorizing a payment", () => {
       last4: "1111",
       mode: "test",
       vori_payment_id: "pay_01jz8k",
-      vori_payment_status: "approved",
+      vori_payment_status: "captured",
     })
   })
 
@@ -140,7 +140,7 @@ describe("authorizing a payment", () => {
       ...session,
       token: undefined,
       vori_payment_id: "pay_01jz8k",
-      vori_payment_status: "approved",
+      vori_payment_status: "captured",
     }
 
     const result = await provider().authorizePayment({ data })
@@ -176,8 +176,8 @@ describe("authorizing a payment", () => {
       session_id: "payses_01",
       token: "DC4:token",
       vori_payment_id: "pay_01timeout",
-      vori_payment_status: "pending",
     })
+    expect(result.data).not.toHaveProperty("vori_payment_status")
     expect((result.data as any).vori_payment_unconfirmed_at).toEqual(expect.any(String))
   })
 
@@ -212,7 +212,7 @@ describe("authorizing a payment", () => {
     expect(retry.status).toBe("error")
     expect(retry.data).toMatchObject({
       vori_payment_id: "pay_01timeout",
-      vori_payment_status: "declined",
+      vori_payment_status: "failed",
     })
     expect(retry.data).not.toHaveProperty("vori_payment_unconfirmed_at")
   })
@@ -232,11 +232,11 @@ describe("refunding a payment", () => {
     mode: "test" as const,
     token: undefined,
     vori_payment_id: "pay_01jz8k",
-    vori_payment_status: "approved",
+    vori_payment_status: "captured",
   }
 
   it("refunds through Vori under a key naming the refund's position", async () => {
-    POST.mockResolvedValue(ok({ id: "re_01", status: "approved" }))
+    POST.mockResolvedValue(ok({ id: "re_01", status: "captured" }))
 
     const result = await provider().refundPayment({
       amount: { value: "5", precision: 20 } as any,
@@ -260,14 +260,14 @@ describe("refunding a payment", () => {
           amount_cents: 500,
           idempotency_key: "pay_01jz8k:5.00:0",
           refund_id: "re_01",
-          status: "approved",
+          status: "captured",
         },
       ],
     })
   })
 
   it("refunds in the mode the payment was taken in, not the current setting", async () => {
-    POST.mockResolvedValue(ok({ id: "re_01", status: "approved" }))
+    POST.mockResolvedValue(ok({ id: "re_01", status: "captured" }))
 
     await provider({ paymentsMode: "live" }).refundPayment({ amount: 5, data: taken })
 
@@ -276,7 +276,7 @@ describe("refunding a payment", () => {
 
   it("retries a failed refund under the same key", async () => {
     POST.mockResolvedValueOnce(refused(503, "service_unavailable"))
-    POST.mockResolvedValueOnce(ok({ id: "re_01", status: "approved" }))
+    POST.mockResolvedValueOnce(ok({ id: "re_01", status: "captured" }))
 
     await expect(
       provider().refundPayment({ amount: 5, context: { idempotency_key: "ref_01" }, data: taken }),
@@ -295,7 +295,7 @@ describe("refunding a payment", () => {
     POST.mockResolvedValueOnce(
       refused(504, "payment_processor_timeout", { payment_id: "pay_01jz8k", refund_id: "re_01" }),
     )
-    POST.mockResolvedValueOnce(ok({ id: "re_01", status: "approved" }))
+    POST.mockResolvedValueOnce(ok({ id: "re_01", status: "captured" }))
 
     await expect(provider().refundPayment({ amount: 5, data: taken })).rejects.toThrow(
       /may already have gone through/,
@@ -346,13 +346,13 @@ describe("refunding a payment", () => {
   })
 
   it("gives back only what is left when a payment is cancelled", async () => {
-    POST.mockResolvedValue(ok({ id: "re_02", status: "approved" }))
+    POST.mockResolvedValue(ok({ id: "re_02", status: "captured" }))
 
     await provider().cancelPayment({
       data: {
         ...taken,
         vori_refunds: [
-          { amount_cents: 500, idempotency_key: "pay_01jz8k:5.00:0", status: "approved" },
+          { amount_cents: 500, idempotency_key: "pay_01jz8k:5.00:0", status: "captured" },
         ],
       },
     })
@@ -363,9 +363,17 @@ describe("refunding a payment", () => {
     })
   })
 
-  it("refunds nothing for a payment Vori never approved", async () => {
+  it("refunds nothing for a payment the card refused", async () => {
     await provider().cancelPayment({
-      data: { ...taken, vori_payment_status: "pending" },
+      data: { ...taken, vori_payment_status: "failed" },
+    })
+
+    expect(POST).not.toHaveBeenCalled()
+  })
+
+  it("refunds nothing for a payment Vori has not answered for", async () => {
+    await provider().cancelPayment({
+      data: { ...taken, vori_payment_status: undefined },
     })
 
     expect(POST).not.toHaveBeenCalled()
@@ -380,10 +388,10 @@ describe("refunding a payment", () => {
 
 describe("reading a payment's status", () => {
   it("reads a payment it took back from Vori and reports its status", async () => {
-    GET.mockResolvedValue(ok({ ...approvedPayment, status: "declined" }, 200))
+    GET.mockResolvedValue(ok({ ...approvedPayment, status: "failed" }, 200))
 
     const result = await provider().getPaymentStatus({
-      data: { vori_payment_id: "pay_01jz8k", vori_payment_status: "approved" },
+      data: { vori_payment_id: "pay_01jz8k", vori_payment_status: "captured" },
     })
 
     expect(GET).toHaveBeenCalledWith("/v1/payments/{id}", {

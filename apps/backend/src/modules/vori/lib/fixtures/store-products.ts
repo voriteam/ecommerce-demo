@@ -13,6 +13,7 @@ import type { VoriStoreProduct, VoriTaxRate } from "../mapping"
  */
 const base: VoriStoreProduct = {
   id: "900001",
+  is_prepackaged: true,
   active: true,
   barcode: "0001111041700",
   brand: "Clover",

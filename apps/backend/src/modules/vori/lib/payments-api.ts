@@ -9,12 +9,121 @@ import { centsToDecimal, decimalToCentsRounded, sumCents } from "./money"
  * later voids or returns it, so no card number or CVV is ever handled here.
  */
 
-export type VoriPayment = components["schemas"]["Payment"]
-export type CreateVoriPaymentRequest = components["schemas"]["CreatePaymentRequest"]
-export type VoriPaymentStatus = components["schemas"]["PaymentStatus"]
+/**
+ * Payments and refunds are described here rather than in the generated client
+ * because Vori serves them only to banners the API is turned on for and leaves
+ * them out of its published description. Everything they share with the rest of
+ * the API, such as card brands and the mode, still comes from the generated
+ * client, so a change there reaches these shapes too.
+ */
 
-export type VoriPaymentRefund = components["schemas"]["PaymentRefund"]
-export type CreateVoriPaymentRefundRequest = components["schemas"]["CreatePaymentRefundRequest"]
+type ErrorBody = { error_code: string; error_details?: Record<string, unknown> }
+
+type JsonResponse<T> = { headers: { [name: string]: unknown }; content: { "application/json": T } }
+
+/** `captured` once the money moved, `authorized` while the processor only holds it. */
+export type VoriPaymentStatus = "authorized" | "captured" | "failed"
+
+export type VoriPaymentMethod = {
+  brand: components["schemas"]["CardBrand"] | null
+  last4: null | string
+  type: components["schemas"]["OnlinePaymentMethodType"]
+}
+
+export type VoriPayment = {
+  amount: string
+  created_at: string
+  id: string
+  idempotency_key: string
+  metadata: null | Record<string, string>
+  mode: VoriPaymentsMode
+  payment_method: VoriPaymentMethod
+  processor: "datacap"
+  status: VoriPaymentStatus
+  store_id: string
+  updated_at: string
+}
+
+export type CreateVoriPaymentRequest = {
+  amount: string
+  idempotency_key: string
+  metadata?: Record<string, string>
+  mode: VoriPaymentsMode
+  store_id: string
+  token: string
+}
+
+export type VoriPaymentRefund = {
+  amount: string
+  created_at: string
+  id: string
+  idempotency_key: string
+  metadata: null | Record<string, string>
+  mode: VoriPaymentsMode
+  payment_id: string
+  processor: "datacap"
+  /** Never `authorized`: a refund either moved the money or did not. */
+  status: VoriPaymentStatus
+  store_id: string
+  type: "return" | "void"
+  updated_at: string
+}
+
+export type CreateVoriPaymentRefundRequest = {
+  amount: string
+  idempotency_key: string
+  metadata?: Record<string, string>
+  mode: VoriPaymentsMode
+  payment_id: string
+  store_id: string
+}
+
+type NoParameters = { query?: never; header?: never; path?: never; cookie?: never }
+type IdParameter = { query?: never; header?: never; path: { id: string }; cookie?: never }
+
+type CreateOperation<TBody, TResult> = {
+  parameters: NoParameters
+  requestBody: { content: { "application/json": TBody } }
+  responses: { 201: JsonResponse<TResult>; default: JsonResponse<ErrorBody> }
+}
+
+type GetOperation<TResult> = {
+  parameters: IdParameter
+  requestBody?: never
+  responses: { 200: JsonResponse<TResult>; default: JsonResponse<ErrorBody> }
+}
+
+type Unused = {
+  put?: never
+  delete?: never
+  options?: never
+  head?: never
+  patch?: never
+  trace?: never
+}
+
+export type VoriPaymentsPaths = {
+  "/v1/payments": Unused & {
+    parameters: NoParameters
+    get?: never
+    post: CreateOperation<CreateVoriPaymentRequest, VoriPayment>
+  }
+  "/v1/payments/{id}": Unused & {
+    parameters: NoParameters
+    get: GetOperation<VoriPayment>
+    post?: never
+  }
+  "/v1/refunds": Unused & {
+    parameters: NoParameters
+    get?: never
+    post: CreateOperation<CreateVoriPaymentRefundRequest, VoriPaymentRefund>
+  }
+  "/v1/refunds/{id}": Unused & {
+    parameters: NoParameters
+    get: GetOperation<VoriPaymentRefund>
+    post?: never
+  }
+}
 
 export class PaymentBuildError extends Error {}
 
@@ -110,14 +219,14 @@ export const buildCreateRefundRequest = (args: {
 }
 
 /**
- * A declined or skipped refund returned nothing. A pending one may still move
- * money, so it counts against what is left.
+ * A failed or skipped refund gave nothing back. One Vori could not answer for
+ * goes on holding its part of the payment, so it counts against what is left.
  */
 export const remainingRefundableCents = (amountCents: number, refunds: RecordedRefund[]) =>
   amountCents -
   sumCents(
     refunds
-      .filter((refund) => refund.status === "approved" || refund.status === "pending")
+      .filter((refund) => refund.status !== "failed" && !refund.skipped)
       .map((refund) => refund.amount_cents),
   )
 

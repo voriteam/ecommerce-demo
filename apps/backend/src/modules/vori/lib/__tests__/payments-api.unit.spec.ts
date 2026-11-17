@@ -108,12 +108,12 @@ describe("building a refund", () => {
     expect(refundIdempotencyKey("pay_01", 500, 1)).not.toBe(first.idempotency_key)
   })
 
-  it("counts approved and pending refunds against what is left", () => {
+  it("counts refunds that moved money, and those Vori could not answer for, against what is left", () => {
     expect(
       remainingRefundableCents(1000, [
-        { amount_cents: 200, idempotency_key: "a", status: "approved" },
-        { amount_cents: 300, idempotency_key: "b", status: "pending" },
-        { amount_cents: 400, idempotency_key: "c", status: "declined" },
+        { amount_cents: 200, idempotency_key: "a", status: "captured" },
+        { amount_cents: 300, idempotency_key: "b" },
+        { amount_cents: 400, idempotency_key: "c", status: "failed" },
         { amount_cents: 100, idempotency_key: "d", skipped: "VORI_WRITE_ENABLED is false" },
       ]),
     ).toBe(500)

@@ -57,15 +57,15 @@ type SessionData = {
 } & Record<string, unknown>
 
 const SESSION_STATUS: Record<VoriPaymentStatus, PaymentSessionStatus> = {
-  approved: "captured",
-  declined: "error",
-  pending: "pending",
+  authorized: "authorized",
+  captured: "captured",
+  failed: "error",
 }
 
 /**
  * The card is tokenized in the browser and the token arrives as session data.
- * A sale on Vori authorizes and captures in one step, so an approved payment
- * is reported as captured and capture itself does nothing.
+ * A sale on Vori authorizes and captures in one step, so a payment comes back
+ * captured and capture itself does nothing.
  *
  * Writes follow the rest of the integration: while they are held back, the
  * request that would have been sent is kept on the payment, nothing is
@@ -127,8 +127,9 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
       ...data
     } = (input.data ?? {}) as SessionData
 
-    if (data.vori_payment_id && data.vori_payment_status === "approved") {
-      return { data, status: "captured" }
+    const settled = data.vori_payment_status
+    if (data.vori_payment_id && settled && settled !== "failed") {
+      return { data, status: SESSION_STATUS[settled] }
     }
 
     if (!token) return { data, status: "requires_more" }
@@ -184,7 +185,6 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
             ...data,
             ...reference,
             token,
-            vori_payment_status: "pending",
             vori_payment_unconfirmed_at: unconfirmedAt ?? new Date().toISOString(),
           },
           status: "requires_more",
@@ -201,7 +201,7 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
         // a throw would leave it marked unconfirmed for good.
         if (unconfirmedAt) {
           return {
-            data: { ...data, ...reference, vori_payment_status: "declined" },
+            data: { ...data, ...reference, vori_payment_status: "failed" },
             status: "error",
           }
         }
@@ -245,7 +245,8 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
    */
   async cancelPayment(input: CancelPaymentInput): Promise<CancelPaymentOutput> {
     const data = (input.data ?? {}) as SessionData
-    if (!data.vori_payment_id || data.vori_payment_status !== "approved") return { data }
+    const taken = data.vori_payment_status
+    if (!data.vori_payment_id || !taken || taken === "failed") return { data }
 
     const remaining = remainingRefundableCents(data.amount_cents ?? 0, data.vori_refunds ?? [])
     if (remaining <= 0) return { data }
@@ -349,7 +350,11 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
     if (!data.vori_payment_id) return { data, status: "pending" }
 
     const payment = await this.fetchPayment(data.vori_payment_id)
-    const status = payment?.status ?? data.vori_payment_status ?? "pending"
+    const status = payment?.status ?? data.vori_payment_status
+
+    // Vori serves a payment only once the processor has answered for it, so
+    // nothing to read means the outcome is still coming.
+    if (!status) return { data, status: "pending" }
 
     return { data: { ...data, vori_payment_status: status }, status: SESSION_STATUS[status] }
   }
@@ -362,14 +367,17 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
     return { data: payment ? { ...data, vori_payment_status: payment.status } : data }
   }
 
-  /** Null while writes are held back: a read is not needed to report state we never changed. */
+  /**
+   * Null while writes are held back, because a read is not needed to report
+   * state we never changed, and null for a payment Vori will not serve yet.
+   */
   private async fetchPayment(id: string): Promise<null | VoriPayment> {
     if (writeBlockedReason(this.config)) return null
 
-    return unwrap(await this.client().GET("/v1/payments/{id}", { params: { path: { id } } }), {
-      method: "GET",
-      path: `/v1/payments/${id}`,
-    })
+    const result = await this.client().GET("/v1/payments/{id}", { params: { path: { id } } })
+    if (result.response.status === 404) return null
+
+    return unwrap(result, { method: "GET", path: `/v1/payments/${id}` })
   }
 
   async getWebhookActionAndData(
