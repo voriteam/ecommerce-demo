@@ -48,7 +48,6 @@ export type CreateVoriPaymentRequest = {
   amount: string
   idempotency_key: string
   metadata?: Record<string, string>
-  mode: VoriPaymentsMode
   store_id: string
   token: string
 }
@@ -73,7 +72,6 @@ export type CreateVoriPaymentRefundRequest = {
   amount: string
   idempotency_key: string
   metadata?: Record<string, string>
-  mode: VoriPaymentsMode
   payment_id: string
   store_id: string
 }
@@ -168,7 +166,6 @@ export const buildCreatePaymentRequest = (args: {
   amountCents: number
   cartId?: null | string
   currencyCode: string
-  mode: VoriPaymentsMode
   sessionId: string
   storeId: string
   token: string
@@ -189,7 +186,6 @@ export const buildCreatePaymentRequest = (args: {
     amount: centsToDecimal(args.amountCents),
     idempotency_key: assertKeyFits(args.sessionId),
     ...(args.cartId ? { metadata: { medusa_cart_id: args.cartId } } : {}),
-    mode: args.mode,
     store_id: args.storeId,
     token: args.token,
   }
@@ -208,7 +204,6 @@ export const buildCreateRefundRequest = (args: {
   amountCents: number
   index: number
   medusaRefundId?: null | string
-  mode: VoriPaymentsMode
   paymentId: string
   storeId: string
 }): CreateVoriPaymentRefundRequest => {
@@ -222,7 +217,6 @@ export const buildCreateRefundRequest = (args: {
     amount: centsToDecimal(args.amountCents),
     idempotency_key: refundIdempotencyKey(args.paymentId, args.amountCents, args.index),
     ...(args.medusaRefundId ? { metadata: { medusa_refund_id: args.medusaRefundId } } : {}),
-    mode: args.mode,
     payment_id: args.paymentId,
     store_id: args.storeId,
   }

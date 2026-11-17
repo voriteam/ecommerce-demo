@@ -138,7 +138,6 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
       amountCents: data.amount_cents ?? 0,
       cartId: data.cart_id,
       currencyCode: data.currency_code ?? "",
-      mode: this.config.paymentsMode,
       sessionId: data.session_id ?? input.context?.idempotency_key ?? "",
       storeId: this.config.storeId ?? "",
       token,
@@ -152,7 +151,7 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
       return {
         data: {
           ...data,
-          mode: request.mode,
+          mode: this.config.paymentsMode,
           vori_payment_request: { ...request, token: undefined },
           vori_write_blocked: blocked,
         },
@@ -218,7 +217,7 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
         ...data,
         ...(brand ? { card_brand: brand } : {}),
         ...(last4 ? { last4 } : {}),
-        mode: payment.mode ?? request.mode,
+        mode: payment.mode ?? this.config.paymentsMode,
         vori_payment_id: payment.id,
         vori_payment_status: payment.status,
       },
@@ -276,8 +275,6 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
       amountCents,
       index: refunds.length,
       medusaRefundId,
-      // A refund goes back through the account the payment was taken on.
-      mode: data.mode ?? this.config.paymentsMode,
       paymentId,
       storeId: this.config.storeId ?? "",
     })

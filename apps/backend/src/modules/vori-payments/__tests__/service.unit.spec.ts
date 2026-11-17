@@ -92,7 +92,6 @@ describe("authorizing a payment", () => {
         amount: "12.49",
         idempotency_key: "payses_01",
         metadata: { medusa_cart_id: "cart_01" },
-        mode: "test",
         store_id: "4320",
       },
       vori_write_blocked: "VORI_WRITE_ENABLED is false",
@@ -110,7 +109,6 @@ describe("authorizing a payment", () => {
         amount: "12.49",
         idempotency_key: "payses_01",
         metadata: { medusa_cart_id: "cart_01" },
-        mode: "test",
         store_id: "4320",
         token: "DC4:token",
       },
@@ -126,12 +124,12 @@ describe("authorizing a payment", () => {
     })
   })
 
-  it("charges in live mode when the store is configured for it", async () => {
+  it("records the mode Vori charged the card in", async () => {
     POST.mockResolvedValue(ok({ ...approvedPayment, mode: "live" }))
 
     const result = await provider({ paymentsMode: "live" }).authorizePayment({ data: session })
 
-    expect(POST.mock.calls[0][1].body.mode).toBe("live")
+    expect(POST.mock.calls[0][1].body).not.toHaveProperty("mode")
     expect(result.data).toMatchObject({ mode: "live" })
   })
 
@@ -249,7 +247,6 @@ describe("refunding a payment", () => {
         amount: "5.00",
         idempotency_key: "pay_01jz8k:5.00:0",
         metadata: { medusa_refund_id: "ref_01" },
-        mode: "test",
         payment_id: "pay_01jz8k",
         store_id: "4320",
       },
@@ -266,12 +263,12 @@ describe("refunding a payment", () => {
     })
   })
 
-  it("refunds in the mode the payment was taken in, not the current setting", async () => {
+  it("asks for a refund without naming an account to take it from", async () => {
     POST.mockResolvedValue(ok({ id: "re_01", status: "captured" }))
 
     await provider({ paymentsMode: "live" }).refundPayment({ amount: 5, data: taken })
 
-    expect(POST.mock.calls[0][1].body.mode).toBe("test")
+    expect(POST.mock.calls[0][1].body).not.toHaveProperty("mode")
   })
 
   it("retries a failed refund under the same key", async () => {

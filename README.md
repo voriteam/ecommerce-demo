@@ -387,8 +387,9 @@ The key the browser tokenizes with comes from the store's own record in Vori, so
 configure on the storefront and a key the grocer rotates takes effect without a redeploy. Which of
 the store's processor accounts a card is charged against follows `VORI_API_KEY`: an `sk_test_` key
 charges the test account, and the browser tokenizes against that same environment, because a card
-tokenized in test cannot be charged live. A refund goes back through the mode its payment was taken
-in. A store carrying no key for the mode does not offer Vori Payments at checkout.
+tokenized in test cannot be charged live. The charge itself names no account: Vori reads it from the
+key the call is made with, and a refund goes back the same way. A store carrying no key for the mode
+does not offer Vori Payments at checkout.
 
 An `sk_live_` key charges the store's real merchant account, and `VORI_WRITE_ENABLED` is then the
 only thing standing between a checkout and real money. Run the demo on a test key.
