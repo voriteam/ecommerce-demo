@@ -2,9 +2,8 @@
 
 import { datacapScriptUrl } from "@lib/constants"
 import type { VoriPaymentsSetup } from "@lib/data/vori"
-import { datacap } from "@lib/util/datacap"
 import Script from "next/script"
-import { createContext, useState } from "react"
+import { createContext, useEffect, useState } from "react"
 
 export type DatacapState = {
   mode: "live" | "test" | null
@@ -33,7 +32,10 @@ const VoriPaymentsWrapper = ({
   children: React.ReactNode
   setup: VoriPaymentsSetup
 }) => {
-  const [ready, setReady] = useState(() => datacap() !== null)
+  // Not seeded from the global: a tokenizer left over from the other mode
+  // would count as ready and take a card against the wrong environment.
+  const [ready, setReady] = useState(false)
+  useEffect(() => setReady(false), [setup.mode])
 
   if (!setup.tokenKey || !setup.mode) return <>{children}</>
 

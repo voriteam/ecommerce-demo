@@ -226,7 +226,9 @@ const VoriPaymentsPaymentButton = ({
   const [checkedUnconfirmed, setCheckedUnconfirmed] = useState<boolean | null>(
     null
   )
-  useEffect(() => setCheckedUnconfirmed(null), [cart])
+  // Keyed on the cart's id, not the prop: a parent re-render must not drop the
+  // warning and send a shopper back through paying for a charge already made.
+  useEffect(() => setCheckedUnconfirmed(null), [cart.id])
   const unconfirmed = checkedUnconfirmed ?? isUnconfirmed(cart, providerId)
 
   const handlePayment = async () => {
