@@ -90,9 +90,12 @@ Two things that go wrong, and what they look like:
 Out of the box the store is empty. Put a store's key and ID in `apps/backend/.env`:
 
 ```bash
-VORI_API_KEY=sk_live_...
+VORI_API_KEY=sk_test_...
 VORI_STORE_ID=...
 ```
+
+Use a test key. Reads behave the same either way, and a test key keeps card payments on the store's
+test processor account, so nothing this demo does can move real money.
 
 Then:
 
@@ -382,11 +385,13 @@ VORI_PAYMENTS_ENABLED=true
 
 The key the browser tokenizes with comes from the store's own record in Vori, so there is nothing to
 configure on the storefront and a key the grocer rotates takes effect without a redeploy. Which of
-the store's processor accounts a card is charged against follows `VORI_API_KEY`: a live key charges
-the real account and any other key charges the test one, and the browser tokenizes against that same
-environment, because a card tokenized in test cannot be charged live. A refund goes back through the
-mode its payment was taken in. A store carrying no key for the mode does not offer Vori Payments at
-checkout, which is how a store without a live merchant account behaves under a live key.
+the store's processor accounts a card is charged against follows `VORI_API_KEY`: an `sk_test_` key
+charges the test account, and the browser tokenizes against that same environment, because a card
+tokenized in test cannot be charged live. A refund goes back through the mode its payment was taken
+in. A store carrying no key for the mode does not offer Vori Payments at checkout.
+
+An `sk_live_` key charges the store's real merchant account, and `VORI_WRITE_ENABLED` is then the
+only thing standing between a checkout and real money. Run the demo on a test key.
 
 Enable Vori Payments on the United States region under Settings > Regions in the admin. The store in
 `VORI_STORE_ID` needs Datacap Pay API credentials in Vori. In `test` mode, use Datacap's test card

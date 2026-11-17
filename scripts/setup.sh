@@ -19,7 +19,7 @@ if [ ! -f apps/backend/.env ]; then
   # Has to be 32 bytes of hex, and has to be stable across restarts.
   MFA_KEY=$(openssl rand -hex 32)
   perl -pi -e "s|^AUTH_MFA_ENCRYPTION_KEY=.*$|AUTH_MFA_ENCRYPTION_KEY=${MFA_KEY}|" apps/backend/.env
-  echo "Created apps/backend/.env — add VORI_API_KEY and VORI_STORE_ID to fill the shelves."
+  echo "Created apps/backend/.env — add a test VORI_API_KEY (sk_test_...) and VORI_STORE_ID to fill the shelves."
 else
   echo "apps/backend/.env already exists, leaving it alone."
 fi
@@ -55,7 +55,7 @@ if grep -qE '^VORI_API_KEY=.+' apps/backend/.env && grep -qE '^VORI_STORE_ID=.+'
   pnpm --filter @vori-demo/backend exec medusa exec ./src/scripts/seed-vori-catalog.ts
 else
   step "Skipping the catalog"
-  echo "VORI_API_KEY and VORI_STORE_ID are not both set in apps/backend/.env."
+  echo "VORI_API_KEY (use an sk_test_ key) and VORI_STORE_ID are not both set in apps/backend/.env."
   echo "Set them and run 'pnpm seed:catalog' to fill the shelves."
 fi
 
