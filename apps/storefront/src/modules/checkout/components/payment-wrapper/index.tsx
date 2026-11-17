@@ -3,12 +3,15 @@
 import { loadStripe } from "@stripe/stripe-js"
 import React from "react"
 import StripeWrapper from "./stripe-wrapper"
+import VoriPaymentsWrapper from "./vori-payments-wrapper"
 import { HttpTypes } from "@medusajs/types"
 import { isStripeLike } from "@lib/constants"
+import type { VoriPaymentsSetup } from "@lib/data/vori"
 
 type PaymentWrapperProps = {
   cart: HttpTypes.StoreCart
   children: React.ReactNode
+  voriPayments: VoriPaymentsSetup
 }
 
 const stripeKey =
@@ -23,7 +26,11 @@ const stripePromise = stripeKey
     )
   : null
 
-const PaymentWrapper: React.FC<PaymentWrapperProps> = ({ cart, children }) => {
+const PaymentWrapper: React.FC<PaymentWrapperProps> = ({
+  cart,
+  children,
+  voriPayments,
+}) => {
   const paymentSession = cart.payment_collection?.payment_sessions?.find(
     (s) => s.status === "pending"
   )
@@ -34,17 +41,23 @@ const PaymentWrapper: React.FC<PaymentWrapperProps> = ({ cart, children }) => {
     stripePromise
   ) {
     return (
-      <StripeWrapper
-        paymentSession={paymentSession}
-        stripeKey={stripeKey}
-        stripePromise={stripePromise}
-      >
-        {children}
-      </StripeWrapper>
+      <VoriPaymentsWrapper setup={voriPayments}>
+        <StripeWrapper
+          paymentSession={paymentSession}
+          stripeKey={stripeKey}
+          stripePromise={stripePromise}
+        >
+          {children}
+        </StripeWrapper>
+      </VoriPaymentsWrapper>
     )
   }
 
-  return <div>{children}</div>
+  return (
+    <VoriPaymentsWrapper setup={voriPayments}>
+      <div>{children}</div>
+    </VoriPaymentsWrapper>
+  )
 }
 
 export default PaymentWrapper

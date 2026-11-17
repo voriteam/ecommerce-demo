@@ -4,12 +4,14 @@ import GiftCardPayment from "@modules/checkout/components/gift-card-payment"
 import { giftCardLabel, giftCardsOn } from "@lib/util/gift-card-payment"
 import { convertToLocale } from "@lib/util/money"
 import { RadioGroup } from "@headlessui/react"
-import { isStripeLike, paymentInfoMap } from "@lib/constants"
+import { isStripeLike, isVoriPayments, paymentInfoMap } from "@lib/constants"
 import { initiatePaymentSession } from "@lib/data/cart"
 import { CheckCircleSolid, CreditCard } from "@medusajs/icons"
 import ErrorMessage from "@modules/checkout/components/error-message"
+import { DatacapContext } from "@modules/checkout/components/payment-wrapper/vori-payments-wrapper"
 import PaymentContainer, {
   StripeCardContainer,
+  VoriPaymentsCardContainer,
 } from "@modules/checkout/components/payment-container"
 import Divider from "@modules/common/components/divider"
 import {
@@ -21,7 +23,7 @@ import {
 } from "@modules/common/components/ui"
 import { HttpTypes } from "@medusajs/types"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useContext, useEffect, useState } from "react"
 
 const Payment = ({
   cart,
@@ -48,10 +50,23 @@ const Payment = ({
 
   const isOpen = searchParams.get("step") === "payment"
 
+  // Without a key from the store there is no way to read a card for Vori
+  // Payments.
+  const { tokenKey } = useContext(DatacapContext)
+  const paymentMethods = (availablePaymentMethods ?? []).filter(
+    (method) => tokenKey || !isVoriPayments(method.id)
+  )
+
+  const needsCard = (method: string) =>
+    isStripeLike(method) || isVoriPayments(method)
+
   const setPaymentMethod = async (method: string) => {
     setError(null)
     setSelectedPaymentMethod(method)
-    if (isStripeLike(method)) {
+    setCardComplete(false)
+    // Opened now rather than on continue: opening a session re-renders the
+    // checkout, which would clear a card form already filled in.
+    if (needsCard(method)) {
       await initiatePaymentSession(cart, {
         provider_id: method,
       })
@@ -62,7 +77,8 @@ const Payment = ({
   const appliedGiftCards = giftCardsOn(cart)
 
   const paymentReady =
-    (activeSession && (cart?.shipping_methods?.length ?? 0) !== 0) || paidByGiftcard
+    (activeSession && (cart?.shipping_methods?.length ?? 0) !== 0) ||
+    paidByGiftcard
 
   const createQueryString = useCallback(
     (name: string, value: string) => {
@@ -86,13 +102,15 @@ const Payment = ({
       // Nothing is left to charge, so there is no session to open. Asking for
       // one sends an empty provider and the payment module refuses it.
       if (paidByGiftcard) {
-        return router.push(pathname + "?" + createQueryString("step", "review"), {
-          scroll: false,
-        })
+        return router.push(
+          pathname + "?" + createQueryString("step", "review"),
+          {
+            scroll: false,
+          }
+        )
       }
 
-      const shouldInputCard =
-        isStripeLike(selectedPaymentMethod) && !activeSession
+      const shouldInputCard = needsCard(selectedPaymentMethod) && !activeSession
 
       const checkActiveSession =
         activeSession?.provider_id === selectedPaymentMethod
@@ -156,15 +174,32 @@ const Payment = ({
               the need to choose one at all. */}
           <GiftCardPayment cart={cart} />
 
-          {!paidByGiftcard && availablePaymentMethods?.length && (
+          {!paidByGiftcard && paymentMethods.length === 0 && (
+            <Text
+              className="txt-medium text-ui-fg-subtle"
+              data-testid="no-payment-methods"
+            >
+              This store is not taking card payments online right now. Please
+              contact the store to place your order.
+            </Text>
+          )}
+
+          {!paidByGiftcard && paymentMethods.length > 0 && (
             <>
               <RadioGroup
                 value={selectedPaymentMethod}
                 onChange={(value: string) => setPaymentMethod(value)}
               >
-                {availablePaymentMethods.map((paymentMethod) => (
+                {paymentMethods.map((paymentMethod) => (
                   <div key={paymentMethod.id}>
-                    {isStripeLike(paymentMethod.id) ? (
+                    {isVoriPayments(paymentMethod.id) ? (
+                      <VoriPaymentsCardContainer
+                        paymentProviderId={paymentMethod.id}
+                        selectedPaymentOptionId={selectedPaymentMethod}
+                        paymentInfoMap={paymentInfoMap}
+                        setCardComplete={setCardComplete}
+                      />
+                    ) : isStripeLike(paymentMethod.id) ? (
                       <StripeCardContainer
                         paymentProviderId={paymentMethod.id}
                         selectedPaymentOptionId={selectedPaymentMethod}
@@ -211,12 +246,12 @@ const Payment = ({
             onClick={handleSubmit}
             isLoading={isLoading}
             disabled={
-              (isStripeLike(selectedPaymentMethod) && !cardComplete) ||
+              (needsCard(selectedPaymentMethod) && !cardComplete) ||
               (!selectedPaymentMethod && !paidByGiftcard)
             }
             data-testid="submit-payment-button"
           >
-            {!activeSession && isStripeLike(selectedPaymentMethod)
+            {!activeSession && needsCard(selectedPaymentMethod)
               ? " Enter card details"
               : "Continue to review"}
           </Button>
@@ -227,7 +262,9 @@ const Payment = ({
               own rather than as the order's one payment method. */}
           {appliedGiftCards.length > 0 && (
             <div className="flex flex-col mb-4" data-testid="gift-card-summary">
-              <Text className="txt-medium-plus text-ui-fg-base mb-1">Gift card</Text>
+              <Text className="txt-medium-plus text-ui-fg-base mb-1">
+                Gift card
+              </Text>
               {appliedGiftCards.map((line) => (
                 <Text key={line.id} className="txt-medium text-ui-fg-subtle">
                   {convertToLocale({
@@ -270,6 +307,8 @@ const Payment = ({
                   <Text>
                     {isStripeLike(selectedPaymentMethod) && cardBrand
                       ? cardBrand
+                      : isVoriPayments(selectedPaymentMethod)
+                      ? "Card"
                       : "Another step will appear"}
                   </Text>
                 </div>

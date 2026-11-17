@@ -292,6 +292,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/house-accounts/{id}/transactions/{transaction_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve a house account transaction
+         * @description Retrieves one charge or payment on a house account.
+         */
+        get: operations["getHouseAccountTransaction"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/item-modifiers": {
         parameters: {
             query?: never;
@@ -447,7 +467,7 @@ export interface paths {
         put?: never;
         /**
          * Create a store department
-         * @description Creates a department in a store. Pass `parent_department_id` to create a sub-department of an existing top-level department.
+         * @description Creates a department in a store. Pass `parent_department_id` to create a sub-department of an existing top-level department. The name must differ, ignoring case and surrounding spaces, from every other active department at the same level: the top-level departments of the store, or the sub-departments of the same parent. The check applies to this request; departments that already share a name are left as they are.
          */
         post: operations["createStoreDepartment"];
         delete?: never;
@@ -475,7 +495,7 @@ export interface paths {
         head?: never;
         /**
          * Update a store department
-         * @description Updates a department. Stamping `deactivated_at` deactivates it and setting it back to null reactivates it; a deactivated department is retained so reporting and past orders still resolve the department they name. A department is only deactivated once it has no active products and no active sub-departments.
+         * @description Updates a department. Stamping `deactivated_at` deactivates it and setting it back to null reactivates it; a deactivated department is retained so reporting and past orders still resolve the department they name. A department is only deactivated once it has no active products and no active sub-departments. Renaming, moving, or reactivating a department is rejected when another active department at its resulting level already has the name, ignoring case and surrounding spaces. An edit that leaves the name, parent, and active state alone is never rejected for the name, so a department that already shares one stays editable.
          */
         patch: operations["updateStoreDepartment"];
         trace?: never;
@@ -502,6 +522,58 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/v1/store-product-placements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List shelf locations
+         * @description Lists the shelf locations of products — aisle, section, and shelf — across the stores the caller may read. Filter by `store_product_id` to find every location of a product; a product can have several, and exactly one of them is primary.
+         */
+        get: operations["listStoreProductPlacements"];
+        put?: never;
+        /**
+         * Create a shelf location
+         * @description Adds a shelf location to a store product. The product's first location becomes its primary location; pass `is_primary` to make a later one primary, which demotes the current primary.
+         */
+        post: operations["createStoreProductPlacement"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/store-product-placements/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Retrieve a shelf location
+         * @description Retrieve a shelf location
+         */
+        get: operations["getStoreProductPlacement"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a shelf location
+         * @description Removes a shelf location. Deleting a product's primary location promotes its oldest remaining location to primary.
+         */
+        delete: operations["deleteStoreProductPlacement"];
+        options?: never;
+        head?: never;
+        /**
+         * Update a shelf location
+         * @description Moves a shelf location to a different aisle, section, or shelf, or makes it the primary location for its product. The primary location cannot be demoted directly; promote another location instead.
+         */
+        patch: operations["updateStoreProductPlacement"];
         trace?: never;
     };
     "/v1/store-products": {
@@ -782,9 +854,15 @@ export interface components {
     schemas: {
         /** @enum {string} */
         Action: "*" | "cancel" | "check_in" | "create" | "delete" | "read" | "read_credentials" | "record_events" | "refund" | "restart" | "update" | "void";
-        /** @enum {string} */
+        /**
+         * @description The role to grant.
+         * @enum {string}
+         */
         AssignableRoleName: "manager";
-        /** @enum {string} */
+        /**
+         * @description The credentials the employee presents to sign in. Never empty, and every method named must have its credential set on the employee, whichever operator the rule uses.
+         * @enum {string}
+         */
         AuthenticationMethod: "barcode" | "pin";
         /** @description How an employee proves their identity at the point of sale. An active employee with no rule of their own authenticates with a PIN. */
         AuthenticationRule: {
@@ -793,7 +871,10 @@ export interface components {
             /** @description How the methods combine: `and` requires every one of them, `or` requires any one of them. */
             operator: components["schemas"]["AuthenticationRuleOperator"];
         };
-        /** @enum {string} */
+        /**
+         * @description How the methods combine: `and` requires every one of them, `or` requires any one of them.
+         * @enum {string}
+         */
         AuthenticationRuleOperator: "and" | "or";
         BarcodeAlreadyAssignedError: {
             /** @enum {string} */
@@ -823,6 +904,20 @@ export interface components {
             name: string;
             /** @description Display priority (lower = shown first) */
             priority: number;
+        };
+        /** @description A compact reference to the tender a register accepted toward a house account balance, outside of any order. */
+        CompactHouseAccountPosPayment: {
+            /**
+             * Format: uuid
+             * @description ID of the payment taken at the register.
+             */
+            id: string;
+            /** @description ID of the employee who took the payment. */
+            employee_id: string;
+            /** @description ID of the checkout lane that took the payment. */
+            lane_id: string;
+            /** @description Tender the payment was taken with: one the register hard-codes (CASH, CREDIT, EBT FOODSTAMP) or a code from the banner’s payment methods. */
+            payment_type: string;
         };
         CompactItemModifier: {
             /** @description Unique identifier for the item modifier. */
@@ -894,11 +989,21 @@ export interface components {
              */
             caseSizeDecimal?: string | null;
             caseUPC?: string | null;
+            /**
+             * @description Nominal pounds per case. `caseSize` is always a count, never a weight.
+             * @example 199.99
+             */
+            caseWeightLb?: string | null;
             /** Format: date-time */
             costStartTime?: string | null;
             description?: string;
             /** @example 199.99 */
             eachCost?: string | null;
+            /**
+             * @description Units per inner pack, in the units `caseSize` counts, for a case divided into packs the store does not sell.
+             * @example 199.99
+             */
+            innerPackSize?: string | null;
             isOrderPrimary?: boolean;
             isPricingEligible?: boolean;
             itemCode?: string;
@@ -918,6 +1023,12 @@ export interface components {
             unitVolume?: string | null;
             /** Format: uuid */
             uuid?: string;
+        };
+        CompactStore: {
+            /** @description Unique identifier for the store. */
+            id: string;
+            /** @description Human-readable store name. */
+            name: string;
         };
         CompactStoreProduct: {
             /** @description Unique identifier for the record. */
@@ -989,6 +1100,13 @@ export interface components {
             case_cost_start_time: string | null;
             /** @example 199.99 */
             case_size: string | null;
+            /** @description Code printed on the case the vendor ships. `barcode` is the code on the item the store sells. */
+            case_upc: string | null;
+            /**
+             * @description Nominal pounds per case. `case_size` is always a count, never a weight.
+             * @example 199.99
+             */
+            case_weight_lb: string | null;
             /**
              * Format: date-time
              * @description When the record was created.
@@ -999,6 +1117,11 @@ export interface components {
             each_cost: string | null;
             /** Format: date-time */
             each_cost_start_time: string | null;
+            /**
+             * @description Units per inner pack, in the units `case_size` counts, for a case divided into packs the store does not sell.
+             * @example 199.99
+             */
+            inner_pack_size: string | null;
             is_order_primary: boolean;
             item_code: string;
             /** @example 199.99 */
@@ -1036,6 +1159,13 @@ export interface components {
             /** @description How `value` is applied: a fixed amount or a percentage. */
             value_type: components["schemas"]["TaxRateValueType"];
         };
+        /** @description A compact reference to a transaction, embedded within other resources, carrying the identifier shown to the shopper. */
+        CompactTransaction: {
+            /** @description Unique identifier for the record. */
+            id: string;
+            /** @description Human-readable transaction identifier shown to the shopper. */
+            shopper_facing_id: string;
+        };
         /** @description A compact reference to a tare container weight, embedded within other resources. Where it is embedded in a completed transaction, it is the immutable reading captured at the time of sale rather than a live reference. */
         CompactVariableWeight: {
             /** @description Unique identifier for the variable weight, or null when the weight was captured on a transaction without one. */
@@ -1071,11 +1201,8 @@ export interface components {
         };
         /** @description Values for creating an employee. */
         CreateEmployeeRequest: {
-            /**
-             * @description How the employee signs in at the point of sale, or null to sign in with a PIN. Every method the rule names must have its credential set on the employee.
-             * @default null
-             */
-            authentication_rule: components["schemas"]["AuthenticationRule"] | null;
+            /** @description How the employee signs in at the point of sale, or null to sign in with a PIN. Every method the rule names must have its credential set on the employee. */
+            authentication_rule?: components["schemas"]["AuthenticationRule"] | null;
             /**
              * @description Barcode on the badge the employee scans to sign in at the point of sale, or null for none. Unique within the banner. A deactivated employee cannot hold one unless the same request reactivates them.
              * @default null
@@ -1156,12 +1283,6 @@ export interface components {
         };
         CreateHouseAccountRequest: {
             /**
-             * Format: monetary
-             * @description Balance to open the account with. Money on the account. A negative balance is what the customer owes the store; a positive balance is credit they can spend. Defaults to zero.
-             * @example 199.99
-             */
-            balance?: string;
-            /**
              * Format: email
              * @description Email address on file for the account holder.
              */
@@ -1193,7 +1314,7 @@ export interface components {
             /** @description Key supplied when the transaction was created, unique within the banner. Sending the same key again returns the transaction already recorded rather than charging the account twice. */
             idempotency_key: string;
             /**
-             * @description Your own key/value pairs, stored with the transaction and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
+             * @description Your own key/value pairs, stored as sent and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
              * @example {
              *       "order_source": "shopify",
              *       "fulfillment_id": "88213"
@@ -1209,7 +1330,7 @@ export interface components {
             order_id?: string;
             /** @description ID of the store the transaction belongs to. Required, except from a register, which posts against the store it is installed in. */
             store_id?: string;
-            /** @description What produced the transaction: a sale or refund rung up at a register, or an adjustment made in the back office. */
+            /** @description What produced the transaction: a sale or refund rung up at a register, a payment accepted at a register toward the balance, a payment made online through Vori toward the balance, or an adjustment made in the back office. A payment is recorded only where it was taken, so this endpoint rejects `pos_payment` and `online_payment`. */
             type: components["schemas"]["HouseAccountTransactionType"];
         };
         CreateItemModifierRequest: {
@@ -1333,7 +1454,7 @@ export interface components {
             completed_at: string;
             /** @description ID of the employee to record this refund under. Defaults to the employee Vori maintains for transactions submitted through this API. */
             employee_id?: string | null;
-            /** @description Your own identifier for this refund, such as a return number from your e-commerce platform. Surrounding whitespace is removed; the value is otherwise stored as provided and never interpreted, and you can filter transactions by it. Vori does not require it to be unique. */
+            /** @description Your own identifier for this refund, such as a return number from your e-commerce platform. Surrounding whitespace is removed; the value is otherwise stored as provided and never interpreted, and you can filter transactions by it. It must be unique among the transactions and refunds in your banner. */
             external_id?: string | null;
             /** @description ID of the lane to record this refund under. Defaults to the lane Vori maintains for transactions submitted through this API. */
             lane_id?: string | null;
@@ -1406,7 +1527,6 @@ export interface components {
             alcohol_by_volume?: string | null;
             barcode: string;
             brand?: string | null;
-            case_size?: number | null;
             country_of_origin?: string | null;
             department_id: string;
             description?: string | null;
@@ -1422,6 +1542,8 @@ export interface components {
             inventory_change?: components["schemas"]["InitialStoreProductInventory"];
             /** @default false */
             is_blackhawk_gift_card: boolean;
+            /** @description Whether the product is sold as a fixed pre-packaged unit rather than weighed or portioned at sale. Omit it when the store has not reviewed it. */
+            is_prepackaged?: boolean;
             /** @default false */
             is_reloadable_blackhawk_gift_card: boolean;
             /** @default false */
@@ -1462,6 +1584,30 @@ export interface components {
             retail_price_source?: components["schemas"]["StoreProductPriceSource"] | null;
             retail_price_source_platform?: components["schemas"]["StoreProductPriceSourcePlatform"] | null;
             retail_price_unit_of_measure_id?: string | null;
+            /** @description First description line on the deli scale label. The product `name` is printed when this is null. */
+            scale_description_1?: string | null;
+            /** @description Second description line on the deli scale label. */
+            scale_description_2?: string | null;
+            /** @description Net weight in ounces printed on the deli scale label. Sent only when `scale_item_type` is `fixed_weight`. */
+            scale_fixed_weight_oz?: number | null;
+            /** @description Whether the deli scale makes the operator enter a tare before it prints a label. true requires a tare, false prints without one, and null leaves the setting on the scale as it is. Cannot be true for a product the scale prices by count: a `scale_item_type` of `by_count`, or no `scale_item_type` and an each retail price unit of measure. */
+            scale_forced_tare?: boolean | null;
+            /** @description How the deli scale prices the product. When null, the retail price unit of measure decides. */
+            scale_item_type?: components["schemas"]["ScaleItemType"] | null;
+            /** @description Deli scale label format number. 0 uses the scale's own default; null uses the store's default label format. */
+            scale_label_format?: number | null;
+            /** @description Deli scale label format number for a second label printed with the first. */
+            scale_secondary_label_format?: number | null;
+            /**
+             * @description Unwrapped tare in pounds: the packaging weight the deli scale subtracts from an unwrapped item. From 0 to 9.999, with up to 3 decimal places. 0 clears the tare on the scale; null leaves the tare set on the scale as it is.
+             * @example 0.045
+             */
+            scale_unwrapped_tare_lb?: string | null;
+            /**
+             * @description Wrapped tare in pounds: the packaging weight the deli scale subtracts from a wrapped item. From 0 to 9.999, with up to 3 decimal places. 0 clears the tare on the scale; null leaves the tare set on the scale as it is.
+             * @example 0.045
+             */
+            scale_wrapped_tare_lb?: string | null;
             /** @description Shelf life in days sent to deli scales (Hobart, eplum, Ishida); the scale computes the sell-by date from it. 1-999, or null for no Vori-managed shelf life. */
             shelf_life_days?: number | null;
             /** @default false */
@@ -1486,6 +1632,21 @@ export interface components {
             wic_enabled: boolean;
             wic_override_plu?: string | null;
         };
+        /** @description A sales floor location to record for a product at a store. */
+        CreateStoreProductPlacementRequest: {
+            /** @description Aisle identifier (e.g. "1", "1A", "Produce"). */
+            aisle: string;
+            /** @description Whether this is the primary (home) location. The first shelf location created for a product becomes primary regardless. */
+            is_primary?: boolean;
+            /** @description Bay/section within the aisle (e.g. "Bay 3", "Left"). */
+            section?: string | null;
+            /** @description Shelf level within the section. */
+            shelf?: number | null;
+            /** @description Store that owns this product. */
+            store_id: string;
+            /** @description Store product to place. */
+            store_product_id: string;
+        };
         CreateStoreProductRequest: {
             data: components["schemas"]["CreateStoreProduct"];
         };
@@ -1507,7 +1668,10 @@ export interface components {
             /** @description How `value` is applied: a fixed amount or a percentage. */
             value_type: components["schemas"]["TaxRateValueType"];
         };
-        /** @enum {string} */
+        /**
+         * @description Card brand, if paid by card. Shown on receipts and in reporting.
+         * @enum {string}
+         */
         CreateTransactionCardBrand: "american_express" | "china_union_pay" | "debit" | "diners_club" | "discover" | "jcb" | "mastercard" | "visa";
         /** @description A gift card sold on a transaction being recorded, with the amount loaded onto it and its recipient. */
         CreateTransactionGiftCardSale: {
@@ -1616,7 +1780,10 @@ export interface components {
             /** @description How the transaction was paid. */
             payment_type: components["schemas"]["CreateTransactionPaymentType"];
         };
-        /** @enum {string} */
+        /**
+         * @description How the transaction was paid.
+         * @enum {string}
+         */
         CreateTransactionPaymentType: "check" | "credit" | "debit" | "gift_card";
         /** @description A completed checkout to record against a store, with its products, payments, and totals. */
         CreateTransactionRequest: {
@@ -1632,7 +1799,7 @@ export interface components {
             completed_at: string;
             /** @description ID of the employee to record this transaction under. Defaults to the employee Vori maintains for transactions submitted through this API. */
             employee_id?: string | null;
-            /** @description Your own identifier for this transaction, such as an order number from your e-commerce platform. Stored exactly as provided and never interpreted, and you can filter transactions by it. Vori does not require it to be unique. */
+            /** @description Your own identifier for this transaction, such as an order number from your e-commerce platform. Stored exactly as provided and never interpreted, and you can filter transactions by it. It must be unique among the transactions and refunds in your banner. */
             external_id?: string | null;
             /** @description Gift cards sold on the transaction. */
             gift_card_sales?: components["schemas"]["CreateTransactionGiftCardSale"][];
@@ -1641,7 +1808,7 @@ export interface components {
             /** @description Products on the transaction. May be empty for a gift-card-only transaction. */
             line_items: components["schemas"]["CreateTransactionLineItem"][];
             /**
-             * @description Your own key/value pairs, stored with the transaction and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
+             * @description Your own key/value pairs, stored as sent and returned unchanged. Vori never interprets them. Up to 50 keys; key names up to 40 characters of letters, numbers, underscores, and hyphens; values up to 500 characters. Keys beginning with "vori" are reserved. Do not put personal or sensitive information here — these values flow into reporting and data exports.
              * @example {
              *       "order_source": "shopify",
              *       "fulfillment_id": "88213"
@@ -1703,6 +1870,10 @@ export interface components {
             /** @enum {string} */
             error_code: "department_has_active_sub_departments";
         };
+        DepartmentSettingLinkedError: {
+            /** @enum {string} */
+            error_code: "department_setting_linked";
+        };
         DescriptionIdentifier: {
             description: string;
             type: components["schemas"]["StoreVendorProductIdentifierType"];
@@ -1761,6 +1932,10 @@ export interface components {
             duplicates: components["schemas"]["DuplicateBarcodeDetail"][];
             /** @enum {string} */
             error_code: "duplicate_barcodes";
+        };
+        DuplicateDepartmentNameError: {
+            /** @enum {string} */
+            error_code: "duplicate_department_name";
         };
         DuplicateHouseAccountShopperFacingIDError: {
             /** @enum {string} */
@@ -1930,7 +2105,10 @@ export interface components {
         GiftCardSaleIdentifierRequiredErrorDetails: {
             index: number;
         };
-        /** @enum {string} */
+        /**
+         * @description Whether the gift card is active and can be used, or has been deactivated.
+         * @enum {string}
+         */
         GiftCardStatus: "active" | "deactivated";
         /** @description One credit or debit on a gift card. The ledger is append-only, so a transaction is never edited or removed once recorded; a correction is another transaction. */
         GiftCardTransaction: {
@@ -1982,7 +2160,10 @@ export interface components {
             /** @description Whether more records follow this page. */
             has_more: boolean;
         };
-        /** @enum {string} */
+        /**
+         * @description What produced the transaction: funds loaded onto the card, the card spent on a sale or restored by a refund, or a back-office adjustment.
+         * @enum {string}
+         */
         GiftCardTransactionType: "book_transfer" | "funding_from_payment" | "manual_adjustment" | "order_payment";
         /** @description A charge account, or tab, a store lets a customer buy against and settle later. A house account belongs to the banner rather than to any one store, and can be charged at any of its registers. */
         HouseAccount: {
@@ -2026,6 +2207,28 @@ export interface components {
              */
             updated_at: string;
         };
+        HouseAccountAchDebitPaymentMethodDetails: {
+            /** @description Whether the bank account is a checking or savings account. */
+            account_type: components["schemas"]["PaymentBankAccountType"];
+            /** @description Last four digits of the bank account number. */
+            last4: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "ach_debit";
+        };
+        HouseAccountCardPaymentMethodDetails: {
+            /** @description Brand of the card. */
+            brand: components["schemas"]["CardBrand"] | null;
+            /** @description Last four digits of the card number. */
+            last4: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "card";
+        };
         HouseAccountDeactivatedError: {
             /** @enum {string} */
             error_code: "house_account_deactivated";
@@ -2035,7 +2238,21 @@ export interface components {
             /** @description Whether more records follow this page. */
             has_more: boolean;
         };
-        /** @enum {string} */
+        /** @description The charge behind an online payment toward a house account. */
+        HouseAccountOnlinePayment: {
+            /** @description ID of the payment. */
+            id: string;
+            /** @description Whether the payment is live or test. A test payment moves no money. */
+            mode: components["schemas"]["PaymentMode"];
+            /** @description The card or bank account the customer paid with. */
+            payment_method_details: components["schemas"]["HouseAccountCardPaymentMethodDetails"] | components["schemas"]["HouseAccountAchDebitPaymentMethodDetails"];
+            /** @description How the customer paid. */
+            payment_method_type: components["schemas"]["OnlinePaymentMethodType"];
+        };
+        /**
+         * @description Whether the account may be charged. A suspended or deactivated account cannot be charged at the register, though a suspended one still accepts payments against what is owed. Defaults to `active`.
+         * @enum {string}
+         */
         HouseAccountStatus: "active" | "deactivated" | "suspended";
         /** @description One charge or payment on a house account. The ledger is append-only, so a transaction is never edited or removed once recorded; a correction is another transaction. */
         HouseAccountTransaction: {
@@ -2081,14 +2298,22 @@ export interface components {
             metadata: {
                 [key: string]: string;
             } | null;
+            /** @description The charge behind an online payment. */
+            online_payment: components["schemas"]["HouseAccountOnlinePayment"] | null;
+            /** @description The order behind an order entry. Null for every other entry. */
+            order: components["schemas"]["CompactTransaction"] | null;
             /**
              * Format: uuid
              * @description ID of the checkout this settled, from the transactions resource. Null when the ledger entry is not tied to a checkout.
              */
             order_id: string | null;
+            /** @description The lane payoff (tender, lane and cashier) behind a `pos_payment` entry. Null for every other entry. */
+            pos_payment: components["schemas"]["CompactHouseAccountPosPayment"] | null;
+            /** @description The store where the transaction took place. */
+            store?: components["schemas"]["CompactStore"];
             /** @description ID of the store where the transaction took place. */
             store_id: string;
-            /** @description What produced the transaction: a sale or refund rung up at a register, or an adjustment made in the back office. */
+            /** @description What produced the transaction: a sale or refund rung up at a register, a payment accepted at a register toward the balance, a payment made online through Vori toward the balance, or an adjustment made in the back office. */
             type: components["schemas"]["HouseAccountTransactionType"];
             /**
              * Format: date-time
@@ -2104,7 +2329,12 @@ export interface components {
             has_more: boolean;
         };
         /** @enum {string} */
-        HouseAccountTransactionType: "manual_adjustment" | "order_payment";
+        HouseAccountTransactionLoaders: "order" | "store";
+        /**
+         * @description What produced the transaction: a sale or refund rung up at a register, a payment accepted at a register toward the balance, a payment made online through Vori toward the balance, or an adjustment made in the back office.
+         * @enum {string}
+         */
+        HouseAccountTransactionType: "manual_adjustment" | "online_payment" | "order_payment" | "pos_payment";
         InitialStoreProductInventory: {
             /**
              * Format: date-time
@@ -2200,8 +2430,11 @@ export interface components {
             /** @enum {string} */
             error_code: "invalid_variable_weights";
         };
-        /** @enum {string} */
-        InventoryChangeSourceType: "API" | "CLEAR_ON_ORDER" | "DASH_PRODUCT_DETAILS" | "DASHBOARD_INVENTORY_PAGE" | "HANDHELD_INVENTORY_COUNT" | "HANDHELD_INVENTORY_MANUAL" | "HANDHELD_INVENTORY_RESTOCK" | "HANDHELD_INVENTORY_SHRINK" | "HANDHELD_ORDERING_COUNT" | "HANDHELD_PRODUCT_MANUAL" | "INVENTORY_RECOUNT" | "INVENTORY_UPLOAD" | "INVOICE_SHIPPED_QTY" | "ONBOARDING_APL_IMPORT" | "POS_REFUND" | "POS_SALE" | "PURCHASE_ORDER" | "RDS_IMPORT" | "STORE_TRANSFER";
+        /**
+         * @description Where the change came from. PACK_OPEN is refused with `pack_open_source_not_allowed`: a pack open is recorded through the pack opens endpoint.
+         * @enum {string}
+         */
+        InventoryChangeSourceType: "API" | "CLEAR_ON_ORDER" | "DASH_PRODUCT_DETAILS" | "DASHBOARD_INVENTORY_PAGE" | "HANDHELD_INVENTORY_COUNT" | "HANDHELD_INVENTORY_MANUAL" | "HANDHELD_INVENTORY_RESTOCK" | "HANDHELD_INVENTORY_SHRINK" | "HANDHELD_ORDERING_COUNT" | "HANDHELD_PRODUCT_MANUAL" | "INVENTORY_RECOUNT" | "INVENTORY_UPLOAD" | "INVOICE_SHIPPED_QTY" | "ONBOARDING_APL_IMPORT" | "PACK_OPEN" | "POS_REFUND" | "POS_SALE" | "PURCHASE_ORDER" | "RDS_IMPORT" | "STORE_TRANSFER";
         /** @description A change to a product's on-hand quantity. */
         InventoryUpdate: {
             /** @description A note explaining the change. */
@@ -2216,9 +2449,15 @@ export interface components {
              */
             value: string;
         };
-        /** @enum {string} */
-        InventoryUpdateReasonType: "shrink_damage" | "shrink_donation" | "shrink_other" | "shrink_spoilage" | "shrink_theft";
-        /** @enum {string} */
+        /**
+         * @description Why the quantity changed.
+         * @enum {string}
+         */
+        InventoryUpdateReasonType: "shrink_damage" | "shrink_donation" | "shrink_other" | "shrink_sample" | "shrink_spoilage" | "shrink_store_use" | "shrink_theft";
+        /**
+         * @description Whether the value replaces (`set`) the on-hand quantity or moves (`adjustment`) it by that amount.
+         * @enum {string}
+         */
         InventoryUpdateType: "adjustment" | "set";
         ItemCodeIdentifier: {
             item_code: string;
@@ -2263,9 +2502,15 @@ export interface components {
             /** @description Whether more records follow this page. */
             has_more: boolean;
         };
-        /** @enum {string} */
+        /**
+         * @description Deprecated. Use `tax_behavior`.
+         * @enum {string}
+         */
         ItemModifierTaxBehavior: "EXCLUDE" | "INHERIT_FROM_STORE_PRODUCT";
-        /** @enum {string} */
+        /**
+         * @description Business purpose of the item modifier.
+         * @enum {string}
+         */
         ItemModifierType: "bottle_deposit" | "custom" | "food_modifier";
         /** @description A checkout lane within a store, carrying the name it is known by and the prefix it applies to shopper-facing order identifiers. */
         Lane: {
@@ -2329,6 +2574,25 @@ export interface components {
             /** @enum {string} */
             error_code: "no_banner_association";
         };
+        /**
+         * @description The payment methods the account can be paid with.
+         * @enum {string}
+         */
+        OnlinePaymentMethodType: "ach_debit" | "card";
+        PackOpenSourceNotAllowedError: {
+            /** @enum {string} */
+            error_code: "pack_open_source_not_allowed";
+        };
+        /**
+         * @description Whether the bank account is a checking or savings account.
+         * @enum {string}
+         */
+        PaymentBankAccountType: "checking" | "savings";
+        /**
+         * @description Live or test. A test payment moves no money.
+         * @enum {string}
+         */
+        PaymentMode: "live" | "test";
         /** @enum {string} */
         PersistableVendorProductStatus: "AVAILABLE" | "DISCONTINUED" | "UNAVAILABLE";
         PhysicalGiftCardDisassociationMissingOwnerError: {
@@ -2340,13 +2604,19 @@ export interface components {
             /** @enum {string} */
             error_code: "pin_already_assigned";
         };
-        /** @enum {string} */
+        /**
+         * @description Deprecated. Use `price_tag_label`.
+         * @enum {string}
+         */
         PriceTagModifier: "BOTTLE_DEPOSIT" | "CRV";
         /** @enum {string} */
         PrimaryVendorConfiguration: "LATEST_COST" | "SELECTED_BY_USER";
         /** @enum {string} */
         PurchaseOrderLineItemUnitOfMeasure: "CASE" | "EACH" | "LB";
-        /** @enum {string} */
+        /**
+         * @description How the shopper took their receipt, or null when they took none.
+         * @enum {string}
+         */
         ReceiptType: "email" | "print" | "sms";
         /** @enum {string} */
         RefundExceedsField: "line_discount_total" | "line_item_modifier_total" | "line_promo_savings" | "line_quantity" | "line_tax_total" | "line_taxable_amount" | "line_total" | "line_weight" | "payment_amount";
@@ -2393,9 +2663,21 @@ export interface components {
             transaction_id: string;
         };
         /** @enum {string} */
-        Resource: "*" | "accounting_integration" | "agent_chats" | "api_clients" | "asynchronous_tasks" | "banners" | "blackhawk_transactions" | "capabilities" | "coupons" | "custom_quick_actions" | "datacap_transactions" | "departments" | "discounts" | "ditto_auth_tokens" | "edge_agents" | "electronic_shelf_labels" | "employees" | "feature_orientations" | "files" | "food_modifiers" | "gift_cards" | "gl_code_mappings" | "house_accounts" | "inventory" | "inventory_sessions" | "inventory_settings" | "invoices" | "item_modifiers" | "label_dimension_sets" | "label_sheet_profiles" | "label_stock_products" | "lanes" | "loyalty_bonuses" | "loyalty_campaigns" | "loyalty_rewards" | "notification_templates" | "offers" | "order_guides" | "pos_banner_configurations" | "pos_orders" | "pos_tills" | "price_tags" | "product_ranges" | "products" | "promotions" | "purchase_orders" | "receiving" | "reporting" | "revision_sessions" | "revisions" | "roles" | "shopper_tags" | "shoppers" | "store_product_inventory_counts" | "store_product_lots" | "store_product_rules" | "store_product_tag_templates" | "store_snap_incentive_program_coupons" | "store_vendor_merge_requests" | "store_vendor_product_merge_requests" | "store_vendor_products" | "store_vendors" | "stores" | "tag_printings" | "tag_template_presets" | "tag_templates" | "tax_rates" | "users" | "variable_weights" | "vendor_merge_requests" | "vendor_product_merge_requests" | "vendors" | "wallet_payments" | "wic_products";
-        /** @enum {string} */
+        Resource: "*" | "accounting_integration" | "agent_chats" | "agent_job_settings" | "agent_tasks" | "agents" | "api_clients" | "asynchronous_tasks" | "banners" | "billing" | "blackhawk_transactions" | "business_entities" | "capabilities" | "coupons" | "custom_quick_actions" | "datacap_transactions" | "departments" | "discounts" | "ditto_auth_tokens" | "edge_agents" | "electronic_shelf_labels" | "employees" | "feature_orientations" | "files" | "food_modifiers" | "gift_cards" | "gl_code_mappings" | "house_account_payment_links" | "house_account_payments" | "house_accounts" | "inventory" | "inventory_sessions" | "inventory_settings" | "invoices" | "item_modifiers" | "label_dimension_sets" | "label_sheet_profiles" | "label_stock_products" | "lanes" | "loyalty_bonuses" | "loyalty_campaigns" | "loyalty_rewards" | "notification_templates" | "offers" | "order_guides" | "orders" | "payments" | "people" | "pos_banner_configurations" | "pos_orders" | "pos_tills" | "price_settings" | "price_tags" | "product_ranges" | "products" | "promotions" | "purchase_orders" | "receiving" | "reporting" | "revision_sessions" | "revisions" | "roles" | "shopper_tags" | "shoppers" | "store_product_inventory_counts" | "store_product_lots" | "store_product_rules" | "store_product_tag_templates" | "store_snap_incentive_program_coupons" | "store_vendor_merge_requests" | "store_vendor_product_merge_requests" | "store_vendor_products" | "store_vendors" | "stores" | "tag_printings" | "tag_template_presets" | "tag_templates" | "tax_rates" | "users" | "variable_weights" | "vendor_data_requests" | "vendor_merge_requests" | "vendor_product_merge_requests" | "vendor_products" | "vendor_store_department_accounts" | "vendors" | "wallet_payments" | "wic_products";
+        /**
+         * @description Name of the role.
+         * @enum {string}
+         */
         RoleName: "everyone" | "manager";
+        ScaleForcedTareOnByCountError: {
+            /** @enum {string} */
+            error_code: "scale_forced_tare_on_by_count";
+        };
+        /**
+         * @description How the deli scale prices the product. When null, the retail price unit of measure decides.
+         * @enum {string}
+         */
+        ScaleItemType: "by_count" | "fixed_weight" | "random_weight";
         /** @description A person a store can recognize at checkout, whether as a loyalty member or as the holder of a gift card. A shopper belongs to the banner rather than to any one store. */
         Shopper: {
             /** @description Unique identifier for the record. */
@@ -2418,6 +2700,8 @@ export interface components {
             first_name: string | null;
             /** @description ID of the store where the shopper enrolled. */
             joined_at_store_id: string | null;
+            /** @description ID of the employee who enrolled the shopper in the loyalty program at the register. */
+            joined_with_employee_id: string | null;
             /** @description Family name of the shopper. */
             last_name: string | null;
             /**
@@ -2453,6 +2737,8 @@ export interface components {
             id: string;
             /** @description Formatted street address for the store. */
             address: string | null;
+            /** @description The public keys the store's online checkout tokenizes cards with, at most one per mode. The `live` key is absent until the store has an e-commerce merchant account. */
+            ecommerce_credentials: components["schemas"]["StoreEcommerceCredential"][];
             /** @description Human-readable store name. */
             name: string;
             /** @description Whether the store accepts WIC as a payment method. */
@@ -2479,6 +2765,13 @@ export interface components {
             data: components["schemas"]["StoreDepartment"][];
             /** @description Whether more records follow this page. */
             has_more: boolean;
+        };
+        /** @description A public key a checkout page uses to tokenize cards for the store before they reach Vori. */
+        StoreEcommerceCredential: {
+            /** @description Live or test. A test payment moves no money. */
+            mode: components["schemas"]["PaymentMode"];
+            /** @description Public key for client-side card tokenization. */
+            public_key: string;
         };
         StoreList: {
             data: components["schemas"]["Store"][];
@@ -2522,6 +2815,8 @@ export interface components {
             inventory?: components["schemas"]["CompactStoreProductInventory"];
             /** @description Whether the product is a Blackhawk gift card. */
             is_blackhawk_gift_card: boolean;
+            /** @description Whether the product is sold as a fixed pre-packaged unit rather than weighed or portioned at sale. Null when the store has not reviewed it. */
+            is_prepackaged: boolean | null;
             /** @description Whether the product is a reloadable Blackhawk gift card. */
             is_reloadable_blackhawk_gift_card: boolean;
             /** @description Whether purchases of this product can include a tip. */
@@ -2623,6 +2918,43 @@ export interface components {
         };
         /** @enum {string} */
         StoreProductLoaders: "active_vendor" | "active_vendor_product" | "inventory" | "store_vendor_products";
+        /** @description A shelf location for a product: where it sits on the sales floor — its aisle, section, and shelf — and whether that is the primary location for the product. */
+        StoreProductPlacement: {
+            /** @description Unique identifier for the record. */
+            id: string;
+            /** @description Aisle identifier (e.g. "1", "1A", "Produce"). */
+            aisle: string;
+            /** @description Banner the shelf location belongs to. */
+            banner_id: string;
+            /**
+             * Format: date-time
+             * @description When the record was created.
+             */
+            created_at: string;
+            /** @description User who created this shelf location; null when an API client created it. */
+            created_by_user_id: string | null;
+            /** @description Whether this is the primary (home) location for the product. */
+            is_primary: boolean;
+            /** @description Bay/section within the aisle (e.g. "Bay 3", "Left"). */
+            section: string | null;
+            /** @description Shelf level within the section. */
+            shelf: number | null;
+            /** @description Store the shelf location belongs to. */
+            store_id: string;
+            /** @description Store product placed at this location. */
+            store_product_id: string;
+            /**
+             * Format: date-time
+             * @description When the record was last changed.
+             */
+            updated_at: string;
+        };
+        /** @description A page of shelf locations. */
+        StoreProductPlacementList: {
+            data: components["schemas"]["StoreProductPlacement"][];
+            /** @description Whether more records follow this page. */
+            has_more: boolean;
+        };
         /** @enum {string} */
         StoreProductPriceInputMethod: "COST_FILE" | "MANUALLY_ENTERED_PRICE" | "USED_SUGGESTED_PRICE";
         /** @enum {string} */
@@ -2868,6 +3200,14 @@ export interface components {
         };
         TransactionEmployeeNotVirtualErrorDetails: {
             employee_id: string;
+        };
+        TransactionExternalIDAlreadyExistsError: {
+            /** @enum {string} */
+            error_code: "transaction_external_id_already_exists";
+            error_details: components["schemas"]["TransactionExternalIDAlreadyExistsErrorDetails"];
+        };
+        TransactionExternalIDAlreadyExistsErrorDetails: {
+            external_id: string;
         };
         /** @description A gift card purchased on a transaction, with the amount loaded onto it and links to the gift card and the transaction that funded it. */
         TransactionGiftCardSale: {
@@ -3339,7 +3679,10 @@ export interface components {
              */
             requested_amount: string;
         };
-        /** @enum {string} */
+        /**
+         * @description How the payment was tendered.
+         * @enum {string}
+         */
         TransactionPaymentType: "cash" | "cash_app" | "check" | "credit" | "debit" | "donation" | "doordash" | "ebt_cash" | "ebt_foodstamp" | "ecommerce" | "ewic" | "gift_card" | "gift_certificate" | "grubhub" | "house_account" | "instacart" | "lottery_payout" | "mfg_coupon" | "money_transfer" | "moneygram" | "paypal" | "qr_pay" | "ria_money_transfer" | "state_voucher" | "uber_eats" | "venmo" | "western_union" | "zelle";
         TransactionRequestMismatchError: {
             /** @enum {string} */
@@ -3358,8 +3701,11 @@ export interface components {
             /** Format: uuid */
             shopper_id: string;
         };
-        /** @enum {string} */
-        TransactionSource: "api" | "migration" | "pos";
+        /**
+         * @description Where the transaction came from.
+         * @enum {string}
+         */
+        TransactionSource: "api" | "external_pos" | "migration" | "pos";
         /** @enum {string} */
         TransactionStatus: "completed" | "expired" | "suspended" | "voided";
         TransactionStoreProductsNotFoundError: {
@@ -3432,11 +3778,8 @@ export interface components {
         };
         /** @description Values for updating an employee. An omitted property is left unchanged, and an explicit null clears a property that permits one. */
         UpdateEmployeeRequest: {
-            /**
-             * @description How the employee signs in at the point of sale, or null to sign in with a PIN. Every method the rule names must have its credential set on the employee.
-             * @default null
-             */
-            authentication_rule: components["schemas"]["AuthenticationRule"] | null;
+            /** @description How the employee signs in at the point of sale, or null to sign in with a PIN. Every method the rule names must have its credential set on the employee. */
+            authentication_rule?: components["schemas"]["AuthenticationRule"] | null;
             /**
              * @description Barcode on the badge the employee scans to sign in at the point of sale, or null for none. Unique within the banner. A deactivated employee cannot hold one unless the same request reactivates them.
              * @default null
@@ -3562,7 +3905,6 @@ export interface components {
             alcohol_by_volume?: string | null;
             barcode?: string;
             brand?: string | null;
-            case_size?: number | null;
             country_of_origin?: string | null;
             department_id?: string;
             description?: string | null;
@@ -3577,6 +3919,8 @@ export interface components {
             ingredients?: string | null;
             /** @default false */
             is_blackhawk_gift_card: boolean;
+            /** @description Whether the product is sold as a fixed pre-packaged unit rather than weighed or portioned at sale. Null marks it not reviewed. */
+            is_prepackaged?: boolean | null;
             /** @default false */
             is_reloadable_blackhawk_gift_card: boolean;
             /** @default false */
@@ -3616,6 +3960,30 @@ export interface components {
             retail_price_source?: components["schemas"]["StoreProductPriceSource"] | null;
             retail_price_source_platform?: components["schemas"]["StoreProductPriceSourcePlatform"] | null;
             retail_price_unit_of_measure_id?: string | null;
+            /** @description First description line on the deli scale label. The product `name` is printed when this is null. */
+            scale_description_1?: string | null;
+            /** @description Second description line on the deli scale label. */
+            scale_description_2?: string | null;
+            /** @description Net weight in ounces printed on the deli scale label. Sent only when `scale_item_type` is `fixed_weight`. */
+            scale_fixed_weight_oz?: number | null;
+            /** @description Whether the deli scale makes the operator enter a tare before it prints a label. true requires a tare, false prints without one, and null leaves the setting on the scale as it is. Cannot be true for a product the scale prices by count: a `scale_item_type` of `by_count`, or no `scale_item_type` and an each retail price unit of measure. */
+            scale_forced_tare?: boolean | null;
+            /** @description How the deli scale prices the product. When null, the retail price unit of measure decides. */
+            scale_item_type?: components["schemas"]["ScaleItemType"] | null;
+            /** @description Deli scale label format number. 0 uses the scale's own default; null uses the store's default label format. */
+            scale_label_format?: number | null;
+            /** @description Deli scale label format number for a second label printed with the first. */
+            scale_secondary_label_format?: number | null;
+            /**
+             * @description Unwrapped tare in pounds: the packaging weight the deli scale subtracts from an unwrapped item. From 0 to 9.999, with up to 3 decimal places. 0 clears the tare on the scale; null leaves the tare set on the scale as it is.
+             * @example 0.045
+             */
+            scale_unwrapped_tare_lb?: string | null;
+            /**
+             * @description Wrapped tare in pounds: the packaging weight the deli scale subtracts from a wrapped item. From 0 to 9.999, with up to 3 decimal places. 0 clears the tare on the scale; null leaves the tare set on the scale as it is.
+             * @example 0.045
+             */
+            scale_wrapped_tare_lb?: string | null;
             /** @description Shelf life in days sent to deli scales (Hobart, eplum, Ishida); the scale computes the sell-by date from it. 1-999, or null for no Vori-managed shelf life. */
             shelf_life_days?: number | null;
             /** @default false */
@@ -3639,6 +4007,17 @@ export interface components {
             /** @default false */
             wic_enabled: boolean;
             wic_override_plu?: string | null;
+        };
+        /** @description Changes to a shelf location, such as moving it to a different aisle, section, or shelf, or promoting it to the primary location. */
+        UpdateStoreProductPlacementRequest: {
+            /** @description Aisle identifier (e.g. "1", "1A", "Produce"). */
+            aisle?: string;
+            /** @description Set true to make this the primary location (demotes the current primary). Setting false on the current primary is rejected — promote another shelf location instead. */
+            is_primary?: boolean;
+            /** @description Bay/section within the aisle (e.g. "Bay 3", "Left"). Pass null to clear. */
+            section?: string | null;
+            /** @description Shelf level within the section. Pass null to clear. */
+            shelf?: number | null;
         };
         UpdateStoreProductRequest: {
             data: components["schemas"]["UpdateStoreProduct"];
@@ -3743,7 +4122,10 @@ export interface components {
             /** @description Whether more records follow this page. */
             has_more: boolean;
         };
-        /** @enum {string} */
+        /**
+         * @description Unit of measure the weight is expressed in, limited to the units the point of sale can weigh in.
+         * @enum {string}
+         */
         VariableWeightUnit: "LBS" | "OZ";
     };
     responses: never;
@@ -4752,14 +5134,33 @@ export interface operations {
     getHouseAccountTransactions: {
         parameters: {
             query?: {
+                /** @description When the transaction took effect. Bound it with `[gte]` and `[lt]` to list one period, such as a statement month. UTC unless the value carries an offset. */
+                effective_at?: string;
+                /** @description When the transaction took effect. Bound it with `[gte]` and `[lt]` to list one period, such as a statement month. UTC unless the value carries an offset. */
+                "effective_at[gt]"?: string;
+                /** @description When the transaction took effect. Bound it with `[gte]` and `[lt]` to list one period, such as a statement month. UTC unless the value carries an offset. */
+                "effective_at[gte]"?: string;
+                /** @description When the transaction took effect. Bound it with `[gte]` and `[lt]` to list one period, such as a statement month. UTC unless the value carries an offset. */
+                "effective_at[lt]"?: string;
+                /** @description When the transaction took effect. Bound it with `[gte]` and `[lt]` to list one period, such as a statement month. UTC unless the value carries an offset. */
+                "effective_at[lte]"?: string;
                 /** @description Return records that precede the record with this ID, in list order. */
                 ending_before?: string;
+                /**
+                 * @description Comma-separated list of related data to include on each transaction:
+                 *
+                 *     - `store` — Populates `store` with the store where the transaction took place.
+                 *     - `order` — Deprecated: has no effect. Every transaction always carries `order`, `pos_payment` and `online_payment`.
+                 *
+                 *     A relation is populated only when this parameter names it, and anything not named is absent from the response rather than null.
+                 */
+                include?: components["schemas"]["HouseAccountTransactionLoaders"][];
                 /** @description Maximum number of records to return. */
                 limit?: number;
                 /** @description Return records that follow the record with this ID, in list order. */
                 starting_after?: string;
-                /** @description What produced the transaction: a sale or refund rung up at a register, or an adjustment made in the back office. Repeat to match any of up to 20 values. */
-                type?: ("manual_adjustment" | "order_payment")[];
+                /** @description What produced the transaction: a sale or refund rung up at a register, a payment accepted at a register toward the balance, a payment made online through Vori toward the balance, or an adjustment made in the back office. Repeat to match any of up to 20 values. */
+                type?: ("manual_adjustment" | "online_payment" | "order_payment" | "pos_payment")[];
             };
             header?: never;
             path: {
@@ -4852,6 +5253,55 @@ export interface operations {
                 };
             };
             /** @description House account not found. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getHouseAccountTransaction: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Comma-separated list of related data to include on each transaction:
+                 *
+                 *     - `store` — Populates `store` with the store where the transaction took place.
+                 *     - `order` — Deprecated: has no effect. Every transaction always carries `order`, `pos_payment` and `online_payment`.
+                 *
+                 *     A relation is populated only when this parameter names it, and anything not named is absent from the response rather than null.
+                 */
+                include?: components["schemas"]["HouseAccountTransactionLoaders"][];
+            };
+            header?: never;
+            path: {
+                /** @description ID of the house account. */
+                id: string;
+                /** @description ID of the transaction. */
+                transaction_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseAccountTransaction"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            /** @description House account or transaction not found. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -5422,7 +5872,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidStoreError"] | components["schemas"]["InvalidParentDepartmentError"] | components["schemas"]["InvalidDepartmentHierarchyError"];
+                    "application/json": components["schemas"]["InvalidStoreError"] | components["schemas"]["InvalidParentDepartmentError"] | components["schemas"]["InvalidDepartmentHierarchyError"] | components["schemas"]["DuplicateDepartmentNameError"];
                 };
             };
             403: {
@@ -5498,7 +5948,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidParentDepartmentError"] | components["schemas"]["InvalidDepartmentHierarchyError"] | components["schemas"]["DepartmentHasActiveProductsError"] | components["schemas"]["DepartmentHasActiveSubDepartmentsError"];
+                    "application/json": components["schemas"]["InvalidParentDepartmentError"] | components["schemas"]["InvalidDepartmentHierarchyError"] | components["schemas"]["DepartmentHasActiveProductsError"] | components["schemas"]["DepartmentHasActiveSubDepartmentsError"] | components["schemas"]["DepartmentSettingLinkedError"] | components["schemas"]["DuplicateDepartmentNameError"];
                 };
             };
             403: {
@@ -5599,7 +6049,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["InvalidStoreProductsError"] | components["schemas"]["MissingStoreProductSelectionError"] | components["schemas"]["MultipleBannersSelectedError"] | components["schemas"]["UnsupportedFilterTypeError"];
+                    "application/json": components["schemas"]["InvalidStoreProductsError"] | components["schemas"]["MissingStoreProductSelectionError"] | components["schemas"]["MultipleBannersSelectedError"] | components["schemas"]["PackOpenSourceNotAllowedError"] | components["schemas"]["UnsupportedFilterTypeError"];
                 };
             };
             403: {
@@ -5609,6 +6059,213 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["InsufficientPermissionsError"];
                 };
+            };
+        };
+    };
+    listStoreProductPlacements: {
+        parameters: {
+            query?: {
+                /** @description Only return shelf locations in this aisle. Matched exactly. */
+                aisle?: string;
+                /** @description Return records that precede the record with this ID, in list order. */
+                ending_before?: string;
+                /** @description Whether the shelf location is the primary (home) location for its product. Omit to match both. */
+                is_primary?: boolean;
+                /** @description Maximum number of records to return. */
+                limit?: number;
+                /** @description Return records that follow the record with this ID, in list order. */
+                starting_after?: string;
+                /** @description The store the shelf location belongs to. Repeat to match any of up to 20 values. */
+                store_id?: string[];
+                /** @description The store product placed at this location. Repeat to match any of up to 20 values. */
+                store_product_id?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreProductPlacementList"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConflictingListParametersError"] | components["schemas"]["InvalidListCursorError"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    createStoreProductPlacement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateStoreProductPlacementRequest"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreProductPlacement"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+        };
+    };
+    getStoreProductPlacement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreProductPlacement"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteStoreProductPlacement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateStoreProductPlacement: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateStoreProductPlacementRequest"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoreProductPlacement"];
+                };
+            };
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InsufficientPermissionsError"] | components["schemas"]["NoBannerAssociationError"];
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The product already has a shelf location at that aisle, section, and shelf. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
@@ -5624,8 +6281,8 @@ export interface operations {
                 /**
                  * @description Comma-separated list of related data to include on each product:
                  *
-                 *     - `active_vendor` — Populates `active_vendor` with the product's primary vendor.
-                 *     - `active_vendor_product` — Populates `active_vendor_product` with the primary vendor's catalog entry, including costs.
+                 *     - `active_vendor` — Populates `active_vendor` with the vendor supplying the product's current cost.
+                 *     - `active_vendor_product` — Populates `active_vendor_product` with the catalog entry supplying the product's current cost, including costs.
                  *     - `inventory` — Populates `inventory` with on-hand quantity data.
                  *     - `store_vendor_products` — Populates `store_vendor_products` with every vendor's catalog entry for the product.
                  */
@@ -5697,7 +6354,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DuplicateBarcodeTypesForProductError"] | components["schemas"]["DuplicateBarcodesError"] | components["schemas"]["InvalidBarcodeError"] | components["schemas"]["InvalidDepartmentError"] | components["schemas"]["InvalidFoodModifiersError"] | components["schemas"]["InvalidItemModifiersError"] | components["schemas"]["InvalidTaxRatesError"] | components["schemas"]["InvalidUnitOfMeasureError"] | components["schemas"]["InvalidVariableWeightsError"];
+                    "application/json": components["schemas"]["DuplicateBarcodeTypesForProductError"] | components["schemas"]["DuplicateBarcodesError"] | components["schemas"]["InvalidBarcodeError"] | components["schemas"]["InvalidDepartmentError"] | components["schemas"]["InvalidFoodModifiersError"] | components["schemas"]["InvalidItemModifiersError"] | components["schemas"]["InvalidTaxRatesError"] | components["schemas"]["InvalidUnitOfMeasureError"] | components["schemas"]["InvalidVariableWeightsError"] | components["schemas"]["ScaleForcedTareOnByCountError"];
                 };
             };
             403: {
@@ -5716,8 +6373,8 @@ export interface operations {
                 /**
                  * @description Comma-separated list of related data to include on each product:
                  *
-                 *     - `active_vendor` — Populates `active_vendor` with the product's primary vendor.
-                 *     - `active_vendor_product` — Populates `active_vendor_product` with the primary vendor's catalog entry, including costs.
+                 *     - `active_vendor` — Populates `active_vendor` with the vendor supplying the product's current cost.
+                 *     - `active_vendor_product` — Populates `active_vendor_product` with the catalog entry supplying the product's current cost, including costs.
                  *     - `inventory` — Populates `inventory` with on-hand quantity data.
                  *     - `store_vendor_products` — Populates `store_vendor_products` with every vendor's catalog entry for the product.
                  */
@@ -5783,7 +6440,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DuplicateBarcodeTypesForProductError"] | components["schemas"]["DuplicateBarcodesError"] | components["schemas"]["InvalidBarcodeError"] | components["schemas"]["InvalidDepartmentError"] | components["schemas"]["InvalidFoodModifiersError"] | components["schemas"]["InvalidItemModifiersError"] | components["schemas"]["InvalidTaxRatesError"] | components["schemas"]["InvalidUnitOfMeasureError"] | components["schemas"]["InvalidVariableWeightsError"];
+                    "application/json": components["schemas"]["DuplicateBarcodeTypesForProductError"] | components["schemas"]["DuplicateBarcodesError"] | components["schemas"]["InvalidBarcodeError"] | components["schemas"]["InvalidDepartmentError"] | components["schemas"]["InvalidFoodModifiersError"] | components["schemas"]["InvalidItemModifiersError"] | components["schemas"]["InvalidTaxRatesError"] | components["schemas"]["InvalidUnitOfMeasureError"] | components["schemas"]["InvalidVariableWeightsError"] | components["schemas"]["ScaleForcedTareOnByCountError"];
                 };
             };
             403: {
@@ -6185,7 +6842,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TransactionAlreadyExistsError"] | components["schemas"]["TransactionRequestMismatchError"];
+                    "application/json": components["schemas"]["TransactionAlreadyExistsError"] | components["schemas"]["TransactionExternalIDAlreadyExistsError"] | components["schemas"]["TransactionRequestMismatchError"];
                 };
             };
         };
@@ -6269,7 +6926,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TransactionAlreadyExistsError"] | components["schemas"]["TransactionRequestMismatchError"];
+                    "application/json": components["schemas"]["TransactionAlreadyExistsError"] | components["schemas"]["TransactionExternalIDAlreadyExistsError"] | components["schemas"]["TransactionRequestMismatchError"];
                 };
             };
         };

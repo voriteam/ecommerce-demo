@@ -33,6 +33,10 @@ export const paymentInfoMap: Record<
     title: "Manual Payment",
     icon: <CreditCard />,
   },
+  "pp_vori-payments_vori": {
+    title: "Credit card (Vori Payments)",
+    icon: <CreditCard />,
+  },
   // Add more payment providers here
 }
 
@@ -49,6 +53,16 @@ export const isPaypal = (providerId?: string) => {
 export const isManual = (providerId?: string) => {
   return providerId?.startsWith("pp_system_default")
 }
+export const isVoriPayments = (providerId?: string) => {
+  return providerId?.startsWith("pp_vori-payments_")
+}
+
+export const datacapScriptUrl = (mode: "live" | "test") =>
+  mode === "live"
+    ? "https://token.dcap.com/v1/client"
+    : "https://token-cert.dcap.com/v1/client"
+
+export const VORI_PAYMENTS_FORM_ID = "vori-payments-card-form"
 
 // Add currencies that don't need to be divided by 100
 export const noDivisionCurrencies = [

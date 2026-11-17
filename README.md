@@ -90,9 +90,12 @@ Two things that go wrong, and what they look like:
 Out of the box the store is empty. Put a store's key and ID in `apps/backend/.env`:
 
 ```bash
-VORI_API_KEY=sk_live_...
+VORI_API_KEY=sk_test_...
 VORI_STORE_ID=...
 ```
+
+Use a test key. Reads behave the same either way, and a test key keeps card payments on the store's
+test processor account, so nothing this demo does can move real money.
 
 Then:
 
@@ -368,6 +371,51 @@ stripe listen --forward-to localhost:9000/hooks/payment/stripe_stripe
 The Stripe payment intent ID is carried through to the Vori tender, so a sale in the grocer's books
 points back at the charge in Stripe.
 
+## Paying with Vori Payments
+
+Vori Payments takes the card through Vori instead of Stripe. The card is tokenized in the shopper's
+browser by Datacap's WebToken client, so the card number and security code never reach this
+server: only a one-time token, the brand and the last four do, and Vori turns the token into a sale
+with the store's processor. Switch it on in the backend:
+
+```bash
+# apps/backend/.env
+VORI_PAYMENTS_ENABLED=true
+```
+
+The key the browser tokenizes with comes from the store's own record in Vori, so there is nothing to
+configure on the storefront and a key the grocer rotates takes effect without a redeploy. Which of
+the store's processor accounts a card is charged against follows `VORI_API_KEY`: an `sk_test_` key
+charges the test account, and the browser tokenizes against that same environment, because a card
+tokenized in test cannot be charged live. The charge itself names no account: Vori reads it from the
+key the call is made with, and a refund goes back the same way. A store carrying no key for the mode
+does not offer Vori Payments at checkout.
+
+An `sk_live_` key charges the store's real merchant account, and `VORI_WRITE_ENABLED` is then the
+only thing standing between a checkout and real money. Run the demo on a test key.
+
+Enable Vori Payments on the United States region under Settings > Regions in the admin. The store in
+`VORI_STORE_ID` needs Datacap Pay API credentials in Vori. In `test` mode the card form starts
+filled in with Datacap's test card, so a checkout needs no typing. A live store's form starts
+empty.
+
+Like every other write, the charge waits on `VORI_WRITE_ENABLED`. With writes off, checkout still
+completes and the request that would have been sent is kept on the payment, but nothing is charged.
+With them on, the recorded sale's card tender carries the Vori payment's `pay_...` ID, and cancelling
+the order refunds the card through Vori. A refund is keyed on the payment and its position among that
+payment's refunds, so a retried cancellation never refunds twice.
+
+If the card processor does not answer, checkout says the payment may have gone through and asks the
+shopper not to pay again, quoting the payment's reference. Placing the order again asks Vori about
+that same payment rather than taking a new one, so it completes if the charge went through. A payment
+left unconfirmed belongs to no order, so cancelling refunds nothing: the store settles it from that
+reference, and Vori will not refund a payment it never took.
+
+Leave `VORI_PAYMENTS_ENABLED` unset and checkout does not offer Vori Payments at all.
+
+An `.env` at the repository root, left over from an earlier version of this demo, is read by nothing.
+The files that count are `apps/backend/.env` and `apps/storefront/.env.local`.
+
 ## Layout
 
 ```
@@ -375,6 +423,7 @@ apps/backend/src/modules/vori/     the Vori integration
   lib/                             the API contract: client, money, mapping, errors. No Medusa in it.
   models/vori-sync-state.ts        where inventory sync got to
   service.ts                       everything that talks to Vori
+apps/backend/src/modules/vori-payments/  the Vori Payments card payment provider
 apps/backend/src/workflows/vori/   seed the catalog, sync inventory, record an order
 apps/backend/src/jobs/             the inventory poll
 apps/backend/src/subscribers/      order.placed
@@ -390,6 +439,10 @@ pnpm generate:client
 
 It reads <https://api.vori.com/openapi.json>. Point `VORI_OPENAPI_SPEC` at a file to build against a
 description that has not been published yet.
+
+Payments and refunds are the exception. Vori serves them only to banners the API is turned on for and
+leaves them out of that description, so `lib/payments-api.ts` describes those four endpoints itself
+and takes what they share with the rest of the API from the generated client.
 
 ## Tests
 

@@ -73,6 +73,30 @@ describe("reading a card off a payment", () => {
     })
   })
 
+  it("points a Vori Payments sale at the payment Vori took", () => {
+    expect(
+      readCardPayment({
+        id: "pay_01XYZ",
+        amount: 12.05,
+        data: { card_brand: "VISA", last4: "1111", vori_payment_id: "pay_01jz8k" },
+      }),
+    ).toEqual({ brand: "VISA", last4: "1111", paidCents: 1205, reference: "pay_01jz8k" })
+  })
+
+  it("still describes the card when writes held the Vori payment back", () => {
+    expect(
+      readCardPayment({
+        id: "pay_01XYZ",
+        amount: 12.05,
+        data: {
+          card_brand: "VISA",
+          last4: "1111",
+          vori_write_blocked: "VORI_WRITE_ENABLED is false",
+        },
+      }),
+    ).toEqual({ brand: "VISA", last4: "1111", paidCents: 1205, reference: "medusa:pay_01XYZ" })
+  })
+
   it("rounds the amount that moved rather than truncating it", () => {
     expect(readCardPayment({ id: "pay_1", amount: 23.500425, data: {} }).paidCents).toBe(2350)
     expect(readCardPayment({ id: "pay_2", amount: 1.035, data: {} }).paidCents).toBe(104)
