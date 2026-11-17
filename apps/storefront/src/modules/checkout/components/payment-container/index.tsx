@@ -140,6 +140,29 @@ export const StripeCardContainer = ({
 const cardInputClassName =
   "pt-3 pb-1 block w-full h-11 px-4 mt-0 bg-ui-bg-field border rounded-md appearance-none focus:outline-none focus:ring-0 focus:shadow-borders-interactive-with-active border-ui-border-base hover:bg-ui-bg-field-hover transition-all duration-300 ease-in-out"
 
+// Datacap reads these fields straight off the DOM, so the value is rewritten
+// in place rather than held in React state.
+const keepDigitsOnly = (event: React.FormEvent<HTMLInputElement>) => {
+  const input = event.currentTarget
+  const digits = input.value.replace(/\D/g, "")
+  if (digits === input.value) return
+
+  const caret = input.selectionStart ?? input.value.length
+  const before = input.value.slice(0, caret)
+  const kept = caret - (before.length - before.replace(/\D/g, "").length)
+
+  input.value = digits
+  input.setSelectionRange(kept, kept)
+}
+
+// The year is computed rather than written down so the form never starts expired.
+const TEST_CARD = {
+  card_number: "4761731000000043",
+  cvv: "123",
+  exp_month: "12",
+  exp_year: String(new Date().getFullYear() + 3),
+}
+
 /**
  * The card form Datacap tokenizes. Datacap finds the fields by their
  * `data-token` attribute and requires them to carry no `id` or `name`, which
@@ -154,8 +177,9 @@ export const VoriPaymentsCardContainer = ({
 }: Omit<PaymentContainerProps, "children"> & {
   setCardComplete: (complete: boolean) => void
 }) => {
-  const { ready: datacapReady } = useContext(DatacapContext)
+  const { mode, ready: datacapReady } = useContext(DatacapContext)
   const formRef = useRef<HTMLFormElement>(null)
+  const prefill = mode === "test" ? TEST_CARD : undefined
 
   const validate = useCallback(() => {
     const client = datacap()
@@ -205,6 +229,8 @@ export const VoriPaymentsCardContainer = ({
               data-token="card_number"
               aria-label="Card number"
               placeholder="Card number"
+              defaultValue={prefill?.card_number}
+              onInput={keepDigitsOnly}
               inputMode="numeric"
               autoComplete="cc-number"
               className={cardInputClassName}
@@ -214,6 +240,7 @@ export const VoriPaymentsCardContainer = ({
                 data-token="exp_month"
                 aria-label="Expiry month"
                 placeholder="MM"
+                defaultValue={prefill?.exp_month}
                 inputMode="numeric"
                 maxLength={2}
                 autoComplete="cc-exp-month"
@@ -223,6 +250,7 @@ export const VoriPaymentsCardContainer = ({
                 data-token="exp_year"
                 aria-label="Expiry year"
                 placeholder="YYYY"
+                defaultValue={prefill?.exp_year}
                 inputMode="numeric"
                 maxLength={4}
                 autoComplete="cc-exp-year"
@@ -232,6 +260,7 @@ export const VoriPaymentsCardContainer = ({
                 data-token="cvv"
                 aria-label="Security code"
                 placeholder="CVV"
+                defaultValue={prefill?.cvv}
                 inputMode="numeric"
                 maxLength={4}
                 autoComplete="cc-csc"

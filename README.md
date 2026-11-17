@@ -395,8 +395,9 @@ An `sk_live_` key charges the store's real merchant account, and `VORI_WRITE_ENA
 only thing standing between a checkout and real money. Run the demo on a test key.
 
 Enable Vori Payments on the United States region under Settings > Regions in the admin. The store in
-`VORI_STORE_ID` needs Datacap Pay API credentials in Vori. In `test` mode, use Datacap's test card
-`4111111111111111` with any future expiry.
+`VORI_STORE_ID` needs Datacap Pay API credentials in Vori. In `test` mode the card form starts
+filled in with Datacap's test card, so a checkout needs no typing. A live store's form starts
+empty.
 
 Like every other write, the charge waits on `VORI_WRITE_ENABLED`. With writes off, checkout still
 completes and the request that would have been sent is kept on the payment, but nothing is charged.

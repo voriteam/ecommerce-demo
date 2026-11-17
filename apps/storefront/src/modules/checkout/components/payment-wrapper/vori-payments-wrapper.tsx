@@ -7,11 +7,13 @@ import Script from "next/script"
 import { createContext, useState } from "react"
 
 export type DatacapState = {
+  mode: "live" | "test" | null
   ready: boolean
   tokenKey: null | string
 }
 
 export const DatacapContext = createContext<DatacapState>({
+  mode: null,
   ready: false,
   tokenKey: null,
 })
@@ -36,7 +38,9 @@ const VoriPaymentsWrapper = ({
   if (!setup.tokenKey || !setup.mode) return <>{children}</>
 
   return (
-    <DatacapContext.Provider value={{ ready, tokenKey: setup.tokenKey }}>
+    <DatacapContext.Provider
+      value={{ mode: setup.mode, ready, tokenKey: setup.tokenKey }}
+    >
       <Script
         src={datacapScriptUrl(setup.mode)}
         onReady={() => setReady(true)}
