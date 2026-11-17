@@ -1,20 +1,24 @@
 "use client"
 
 import {
-  datacapTokenKey,
   isManual,
   isStripeLike,
   isVoriPayments,
   VORI_PAYMENTS_FORM_ID,
 } from "@lib/constants"
-import { initiatePaymentSession, placeOrder, retrieveCart } from "@lib/data/cart"
+import {
+  initiatePaymentSession,
+  placeOrder,
+  retrieveCart,
+} from "@lib/data/cart"
 import { requestDatacapToken } from "@lib/util/datacap"
 import { coveredByGiftCards } from "@lib/util/gift-card-payment"
 import { HttpTypes } from "@medusajs/types"
 import { Button } from "@modules/common/components/ui"
 import { useElements, useStripe } from "@stripe/react-stripe-js"
-import React, { useEffect, useState } from "react"
+import React, { useContext, useEffect, useState } from "react"
 import ErrorMessage from "../error-message"
+import { DatacapContext } from "../payment-wrapper/vori-payments-wrapper"
 
 type PaymentButtonProps = {
   cart: HttpTypes.StoreCart
@@ -37,7 +41,9 @@ const PaymentButton: React.FC<PaymentButtonProps> = ({
   switch (true) {
     // No payment session to authorise, so nothing to wait for or select.
     case coveredByGiftCards(cart):
-      return <GiftCardPaymentButton notReady={notReady} data-testid={dataTestId} />
+      return (
+        <GiftCardPaymentButton notReady={notReady} data-testid={dataTestId} />
+      )
     case isStripeLike(paymentSession?.provider_id):
       return (
         <StripePaymentButton
@@ -213,12 +219,13 @@ const VoriPaymentsPaymentButton = ({
   providerId: string
   "data-testid"?: string
 }) => {
+  const { tokenKey } = useContext(DatacapContext)
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   // What our own post-failure read found, until the cart prop catches up.
-  const [checkedUnconfirmed, setCheckedUnconfirmed] = useState<
-    boolean | null
-  >(null)
+  const [checkedUnconfirmed, setCheckedUnconfirmed] = useState<boolean | null>(
+    null
+  )
   useEffect(() => setCheckedUnconfirmed(null), [cart])
   const unconfirmed = checkedUnconfirmed ?? isUnconfirmed(cart, providerId)
 
@@ -235,7 +242,7 @@ const VoriPaymentsPaymentButton = ({
       }
 
       const card = await requestDatacapToken(
-        datacapTokenKey,
+        tokenKey ?? "",
         VORI_PAYMENTS_FORM_ID
       )
 

@@ -154,7 +154,7 @@ export const VoriPaymentsCardContainer = ({
 }: Omit<PaymentContainerProps, "children"> & {
   setCardComplete: (complete: boolean) => void
 }) => {
-  const datacapReady = useContext(DatacapContext)
+  const { ready: datacapReady } = useContext(DatacapContext)
   const formRef = useRef<HTMLFormElement>(null)
 
   const validate = useCallback(() => {

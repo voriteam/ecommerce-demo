@@ -373,27 +373,23 @@ points back at the charge in Stripe.
 Vori Payments takes the card through Vori instead of Stripe. The card is tokenized in the shopper's
 browser by Datacap's WebToken client, so the card number and security code never reach this
 server: only a one-time token, the brand and the last four do, and Vori turns the token into a sale
-with the store's processor. It needs the store's Datacap WebToken key on the storefront and the
-provider switched on in the backend:
+with the store's processor. Switch it on in the backend:
 
 ```bash
 # apps/backend/.env
 VORI_PAYMENTS_ENABLED=true
-VORI_PAYMENTS_MODE=test                # or live
-
-# apps/storefront/.env.local
-NEXT_PUBLIC_DATACAP_TOKEN_KEY=...
-NEXT_PUBLIC_VORI_PAYMENTS_MODE=test    # or live
 ```
 
-The two modes must agree. The storefront's mode picks which Datacap environment tokenizes the card,
-and the backend's is sent with every payment and refund to say which processor account Vori charges.
-A token minted in test cannot be charged live, so a mismatch fails every checkout. A refund goes
-back through the mode its payment was taken in.
+The key the browser tokenizes with comes from the store's own record in Vori, so there is nothing to
+configure on the storefront and a key the grocer rotates takes effect without a redeploy. Which of
+the store's processor accounts a card is charged against follows `VORI_API_KEY`: a live key charges
+the real account and any other key charges the test one, and the browser tokenizes against that same
+environment, because a card tokenized in test cannot be charged live. A refund goes back through the
+mode its payment was taken in. A store carrying no key for the mode does not offer Vori Payments at
+checkout, which is how a store without a live merchant account behaves under a live key.
 
 Enable Vori Payments on the United States region under Settings > Regions in the admin. The store in
-`VORI_STORE_ID` needs Datacap Pay API credentials in Vori, and the token key has to belong to the
-same merchant. In `test` mode, use Datacap's test card
+`VORI_STORE_ID` needs Datacap Pay API credentials in Vori. In `test` mode, use Datacap's test card
 `4111111111111111` with any future expiry.
 
 Like every other write, the charge waits on `VORI_WRITE_ENABLED`. With writes off, checkout still
@@ -408,7 +404,7 @@ that same payment rather than taking a new one, so it completes if the charge we
 left unconfirmed belongs to no order, so cancelling refunds nothing: the store settles it from that
 reference, and Vori will not refund a payment it never took.
 
-Leave `NEXT_PUBLIC_DATACAP_TOKEN_KEY` empty and checkout does not offer Vori Payments at all.
+Leave `VORI_PAYMENTS_ENABLED` unset and checkout does not offer Vori Payments at all.
 
 An `.env` at the repository root, left over from an earlier version of this demo, is read by nothing.
 The files that count are `apps/backend/.env` and `apps/storefront/.env.local`.

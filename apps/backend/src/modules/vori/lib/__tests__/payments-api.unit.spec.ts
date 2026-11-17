@@ -7,6 +7,7 @@ import {
   isUnconfirmedPayment,
   paymentRefusalMessage,
   refusalDetails,
+  tokenizationKeyFor,
   refundIdempotencyKey,
   remainingRefundableCents,
 } from "../payments-api"
@@ -62,6 +63,31 @@ describe("building a payment", () => {
     expect(() => buildCreatePaymentRequest({ ...sale, amountCents: 1.5 })).toThrow(
       PaymentBuildError,
     )
+  })
+})
+
+describe("the key a checkout tokenizes with", () => {
+  const store = {
+    id: "4320",
+    address: null,
+    ecommerce_credentials: [
+      { mode: "test" as const, public_key: "test-key" },
+      { mode: "live" as const, public_key: "live-key" },
+    ],
+    name: "Vori Neighborhood Market",
+    supports_wic: true,
+  }
+
+  it("takes the key for the mode the store is charged in", () => {
+    expect(tokenizationKeyFor(store, "test")).toBe("test-key")
+    expect(tokenizationKeyFor(store, "live")).toBe("live-key")
+  })
+
+  it("has no key for a mode the store carries none for", () => {
+    const testOnly = { ...store, ecommerce_credentials: [store.ecommerce_credentials[0]] }
+
+    expect(tokenizationKeyFor(testOnly, "live")).toBeNull()
+    expect(tokenizationKeyFor({ ...store, ecommerce_credentials: [] }, "test")).toBeNull()
   })
 })
 

@@ -4,15 +4,11 @@ import GiftCardPayment from "@modules/checkout/components/gift-card-payment"
 import { giftCardLabel, giftCardsOn } from "@lib/util/gift-card-payment"
 import { convertToLocale } from "@lib/util/money"
 import { RadioGroup } from "@headlessui/react"
-import {
-  datacapTokenKey,
-  isStripeLike,
-  isVoriPayments,
-  paymentInfoMap,
-} from "@lib/constants"
+import { isStripeLike, isVoriPayments, paymentInfoMap } from "@lib/constants"
 import { initiatePaymentSession } from "@lib/data/cart"
 import { CheckCircleSolid, CreditCard } from "@medusajs/icons"
 import ErrorMessage from "@modules/checkout/components/error-message"
+import { DatacapContext } from "@modules/checkout/components/payment-wrapper/vori-payments-wrapper"
 import PaymentContainer, {
   StripeCardContainer,
   VoriPaymentsCardContainer,
@@ -27,7 +23,7 @@ import {
 } from "@modules/common/components/ui"
 import { HttpTypes } from "@medusajs/types"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useContext, useEffect, useState } from "react"
 
 const Payment = ({
   cart,
@@ -54,9 +50,11 @@ const Payment = ({
 
   const isOpen = searchParams.get("step") === "payment"
 
-  // Without a token key there is no way to read a card for Vori Payments.
+  // Without a key from the store there is no way to read a card for Vori
+  // Payments.
+  const { tokenKey } = useContext(DatacapContext)
   const paymentMethods = (availablePaymentMethods ?? []).filter(
-    (method) => datacapTokenKey || !isVoriPayments(method.id)
+    (method) => tokenKey || !isVoriPayments(method.id)
   )
 
   const needsCard = (method: string) =>
@@ -79,7 +77,8 @@ const Payment = ({
   const appliedGiftCards = giftCardsOn(cart)
 
   const paymentReady =
-    (activeSession && (cart?.shipping_methods?.length ?? 0) !== 0) || paidByGiftcard
+    (activeSession && (cart?.shipping_methods?.length ?? 0) !== 0) ||
+    paidByGiftcard
 
   const createQueryString = useCallback(
     (name: string, value: string) => {
@@ -103,9 +102,12 @@ const Payment = ({
       // Nothing is left to charge, so there is no session to open. Asking for
       // one sends an empty provider and the payment module refuses it.
       if (paidByGiftcard) {
-        return router.push(pathname + "?" + createQueryString("step", "review"), {
-          scroll: false,
-        })
+        return router.push(
+          pathname + "?" + createQueryString("step", "review"),
+          {
+            scroll: false,
+          }
+        )
       }
 
       const shouldInputCard = needsCard(selectedPaymentMethod) && !activeSession
@@ -260,7 +262,9 @@ const Payment = ({
               own rather than as the order's one payment method. */}
           {appliedGiftCards.length > 0 && (
             <div className="flex flex-col mb-4" data-testid="gift-card-summary">
-              <Text className="txt-medium-plus text-ui-fg-base mb-1">Gift card</Text>
+              <Text className="txt-medium-plus text-ui-fg-base mb-1">
+                Gift card
+              </Text>
               {appliedGiftCards.map((line) => (
                 <Text key={line.id} className="txt-medium text-ui-fg-subtle">
                   {convertToLocale({

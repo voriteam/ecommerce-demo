@@ -57,12 +57,8 @@ export const isVoriPayments = (providerId?: string) => {
   return providerId?.startsWith("pp_vori-payments_")
 }
 
-// Public by design: a Datacap token key can only tokenize a card for its
-// merchant, never charge one.
-export const datacapTokenKey = process.env.NEXT_PUBLIC_DATACAP_TOKEN_KEY || ""
-
-export const datacapScriptUrl =
-  process.env.NEXT_PUBLIC_VORI_PAYMENTS_MODE === "live"
+export const datacapScriptUrl = (mode: "live" | "test") =>
+  mode === "live"
     ? "https://token.dcap.com/v1/client"
     : "https://token-cert.dcap.com/v1/client"
 

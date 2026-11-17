@@ -3,7 +3,7 @@ import { MedusaError, MedusaService } from "@medusajs/framework/utils"
 import { VoriSyncState } from "./models/vori-sync-state"
 import { createVoriClient, paginate, unwrap, type VoriClient, type VoriLogger } from "./lib/client"
 import { VoriApiError } from "./lib/errors"
-import type { VoriConfig } from "./lib/config"
+import type { VoriConfig, VoriPaymentsMode } from "./lib/config"
 import type {
   VoriStoreDepartment,
   VoriStoreProduct,
@@ -15,6 +15,7 @@ import type {
   GiftCard,
   GiftCardTransaction,
 } from "./lib/gift-cards"
+import { tokenizationKeyFor, type VoriStore } from "./lib/payments-api"
 import type { CreateTransactionRequest } from "./lib/transactions"
 import type { CreateRefundRequest, VoriTransaction } from "./lib/refunds"
 import { normalizePhone } from "./lib/phone"
@@ -85,6 +86,11 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
   /** Credentials present, so the read endpoints can be called at all. */
   async canRead(): Promise<boolean> {
     return Boolean(this.options.apiKey && this.options.storeId)
+  }
+
+  /** Which of the store's processor accounts a card is charged against. */
+  async paymentsMode(): Promise<VoriPaymentsMode> {
+    return this.options.paymentsMode
   }
 
   /** Human-readable reason writes are held back, or null when they are not. */
@@ -287,6 +293,28 @@ class VoriModuleService extends MedusaService({ VoriSyncState }) {
     )
 
     return list.data[0] ?? null
+  }
+
+  async getStore(id: string): Promise<null | VoriStore> {
+    try {
+      return unwrap(await this.client().GET("/v1/stores/{id}", { params: { path: { id } } }), {
+        method: "GET",
+        path: `/v1/stores/${id}`,
+      })
+    } catch (error) {
+      if (error instanceof VoriApiError && error.status === 404) return null
+      throw error
+    }
+  }
+
+  /**
+   * The public key this store's checkout tokenizes cards with, in the mode the
+   * demo is configured for. Null when the store has no key for that mode, which
+   * is how a checkout knows not to offer Vori Payments at all.
+   */
+  async ecommerceTokenizationKey(): Promise<null | string> {
+    const store = await this.getStore(this.storeId())
+    return store ? tokenizationKeyFor(store, this.options.paymentsMode) : null
   }
 
   /**

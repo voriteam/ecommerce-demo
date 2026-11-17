@@ -125,6 +125,16 @@ export type VoriPaymentsPaths = {
   }
 }
 
+export type VoriStore = components["schemas"]["Store"]
+
+/**
+ * The key the browser tokenizes with in this mode, or null when the store has
+ * none. A store without an e-commerce merchant account carries no `live` key,
+ * and a key from the wrong mode cannot be charged in this one.
+ */
+export const tokenizationKeyFor = (store: VoriStore, mode: VoriPaymentsMode): null | string =>
+  store.ecommerce_credentials.find((credential) => credential.mode === mode)?.public_key ?? null
+
 export class PaymentBuildError extends Error {}
 
 const MAX_IDEMPOTENCY_KEY_LENGTH = 255
