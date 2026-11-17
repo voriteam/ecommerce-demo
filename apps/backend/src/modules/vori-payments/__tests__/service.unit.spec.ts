@@ -233,6 +233,18 @@ describe("refunding a payment", () => {
     vori_payment_status: "captured",
   }
 
+  it("reports a refund it will not build as a bad request, not a crash", async () => {
+    await expect(
+      provider().refundPayment({
+        amount: { value: "0", precision: 20 } as any,
+        context: { idempotency_key: "ref_01" },
+        data: taken,
+      })
+    ).rejects.toThrow(MedusaError)
+
+    expect(POST).not.toHaveBeenCalled()
+  })
+
   it("refunds through Vori under a key naming the refund's position", async () => {
     POST.mockResolvedValue(ok({ id: "re_01", status: "captured" }))
 

@@ -32,6 +32,7 @@ import {
   buildCreatePaymentRequest,
   buildCreateRefundRequest,
   isUnconfirmedPayment,
+  PaymentBuildError,
   paymentRefusalMessage,
   refusalDetails,
   remainingRefundableCents,
@@ -89,6 +90,13 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
     return this.client_
   }
 
+  private invalidRequest(error: unknown): unknown {
+    if (error instanceof PaymentBuildError) {
+      return new MedusaError(MedusaError.Types.INVALID_DATA, error.message)
+    }
+    return error
+  }
+
   private refusal(error: unknown, type: string): unknown {
     if (error instanceof VoriApiError) {
       const message = paymentRefusalMessage(error)
@@ -134,14 +142,19 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
 
     if (!token) return { data, status: "requires_more" }
 
-    const request = buildCreatePaymentRequest({
-      amountCents: data.amount_cents ?? 0,
-      cartId: data.cart_id,
-      currencyCode: data.currency_code ?? "",
-      sessionId: data.session_id ?? input.context?.idempotency_key ?? "",
-      storeId: this.config.storeId ?? "",
-      token,
-    })
+    let request
+    try {
+      request = buildCreatePaymentRequest({
+        amountCents: data.amount_cents ?? 0,
+        cartId: data.cart_id,
+        currencyCode: data.currency_code ?? "",
+        sessionId: data.session_id ?? input.context?.idempotency_key ?? "",
+        storeId: this.config.storeId ?? "",
+        token,
+      })
+    } catch (error) {
+      throw this.invalidRequest(error)
+    }
 
     const blocked = writeBlockedReason(this.config)
 
@@ -271,13 +284,18 @@ class VoriPaymentsProviderService extends AbstractPaymentProvider<VoriConfig> {
       }
     }
 
-    const request = buildCreateRefundRequest({
-      amountCents,
-      index: refunds.length,
-      medusaRefundId,
-      paymentId,
-      storeId: this.config.storeId ?? "",
-    })
+    let request
+    try {
+      request = buildCreateRefundRequest({
+        amountCents,
+        index: refunds.length,
+        medusaRefundId,
+        paymentId,
+        storeId: this.config.storeId ?? "",
+      })
+    } catch (error) {
+      throw this.invalidRequest(error)
+    }
 
     const blocked = writeBlockedReason(this.config)
 
