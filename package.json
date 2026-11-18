@@ -12,6 +12,7 @@
     "start": "turbo start",
     "lint": "turbo lint",
     "test": "turbo test",
+    "check": "pnpm --filter @vori-demo/backend lint && pnpm -r exec tsc --noEmit && pnpm --filter @vori-demo/backend test:unit",
     "backend:dev": "turbo dev --filter=@vori-demo/backend",
     "storefront:dev": "turbo dev --filter=@vori-demo/storefront",
     "db:migrate": "pnpm --filter @vori-demo/backend exec medusa db:migrate",
