@@ -3,7 +3,7 @@
 import { datacapScriptUrl } from "@lib/constants"
 import type { VoriPaymentsSetup } from "@lib/data/vori"
 import Script from "next/script"
-import { createContext, useEffect, useState } from "react"
+import { createContext, useState } from "react"
 
 export type DatacapState = {
   mode: "live" | "test" | null
@@ -32,20 +32,27 @@ const VoriPaymentsWrapper = ({
   children: React.ReactNode
   setup: VoriPaymentsSetup
 }) => {
-  // Not seeded from the global: a tokenizer left over from the other mode
-  // would count as ready and take a card against the wrong environment.
-  const [ready, setReady] = useState(false)
-  useEffect(() => setReady(false), [setup.mode])
+  // Ready only for the mode whose script reported it: a tokenizer left over
+  // from the other mode would take a card against the wrong environment.
+  // next/script calls onReady from its own effect when the script is already
+  // loaded, so readiness must never be reset from this component's effects,
+  // which run after it.
+  const [readyMode, setReadyMode] = useState<DatacapState["mode"]>(null)
 
   if (!setup.tokenKey || !setup.mode) return <>{children}</>
 
   return (
     <DatacapContext.Provider
-      value={{ mode: setup.mode, ready, tokenKey: setup.tokenKey }}
+      value={{
+        mode: setup.mode,
+        ready: readyMode === setup.mode,
+        tokenKey: setup.tokenKey,
+      }}
     >
       <Script
+        key={setup.mode}
         src={datacapScriptUrl(setup.mode)}
-        onReady={() => setReady(true)}
+        onReady={() => setReadyMode(setup.mode)}
       />
       {children}
     </DatacapContext.Provider>
